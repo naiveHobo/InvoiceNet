@@ -27,23 +27,31 @@ class DataHandler:
         self.data = data
         self.max_length = max_len
 
-    def prepare_training_data(self):
+    def process_data(self, tokens, coordinates):
+        tokens = [self.START] + tokens[:self.max_length - 2] + [self.END]
+        tokens += [self.PAD] * (self.max_length - len(tokens))
+        inp = np.array([self.get_word_id(token) for token in tokens])
+        coordinates = np.array(coordinates)
+        return inp, coordinates
+
+    def prepare_data(self):
         """Prepares data for training"""
         inputs = []
         labels = []
-        midpoints = []
+        coordinates = []
 
         for i, row in self.data.iterrows():
             text = row['type']
             coords = row['coords']
-            label = [0.0] * len(self.label_dict)
-            label[self.label_dict[int(row['label'])]] = 1.0
+            label = self.label_dict[int(row['label'])]
             tokens = text[0].strip().split(' ')
             # dtypes = [self.type_dict[dtype] for dtype in text[1].split(',')]
             height = float(text[-2])
             width = float(text[-1])
-            midx = float(coords[-2]) / width
-            midy = float(coords[-1]) / height
+            min_x = float(coords[0]) / width
+            min_y = float(coords[1]) / height
+            max_x = float(coords[2]) / width
+            max_y = float(coords[3]) / height
 
             tokens = [self.START] + tokens[:self.max_length - 2] + [self.END]
             tokens += [self.PAD] * (self.max_length - len(tokens))
@@ -51,11 +59,11 @@ class DataHandler:
 
             inputs.append(np.array(inp))
             labels.append(np.array(label))
-            midpoints.append(np.array([midx, midy]))
+            coordinates.append(np.array([min_x, min_y, max_x, max_y]))
 
         self.train_data['inputs'] = np.array(inputs)
         self.train_data['labels'] = np.array(labels)
-        self.train_data['midpoints'] = np.array(midpoints)
+        self.train_data['coordinates'] = np.array(coordinates)
 
     def load_embeddings(self, model_path):
         """Loads pre-trained gensim model"""
