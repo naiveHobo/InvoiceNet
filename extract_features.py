@@ -42,6 +42,18 @@ parses_as_number:       Whether the N-gram parses as an integer
 """
 
 
+def ngrammer(tokens, length=4):
+    """
+    Generates n-grams from the given tokens
+    :param tokens: list of tokens in the text
+    :param length: n-grams of up to this length
+    :return: n-grams as tuples
+    """
+    for n in range(1, min(len(tokens) + 1, length+1)):
+        for gram in ngrams(tokens, n):
+            yield gram
+
+
 def extract_features(path):
     """
     Loads a pickled dataframe from the given path, creates n-grams and extracts features
@@ -93,26 +105,25 @@ def extract_features(path):
             page_width = value['xmax'] - value['xmin']
             for i in range(len(value['lines']['words'])):
                 tokens = re.sub(r"  ", " ", value['lines']['words'][i].strip()).split(' ')
-                for n in range(1, min(len(tokens) + 1, 5)):
-                    for gram in ngrams(tokens, n):
-                        raw_text = ' '.join(gram)
-                        grams['raw_text'].append(raw_text)
-                        grams['raw_text_last_word'].append(gram[-1])
-                        grams['text_pattern'].append(re.sub('[a-z]', 'x', re.sub('[A-Z]', 'X', re.sub('\d', '0', re.sub(
-                            '[^a-zA-Z\d\ ]', '?', raw_text)))))
-                        grams['length'].append(len(gram))
-                        grams['has_digits'].append(bool(re.search(r'\d', ' '.join(gram))))
-                        grams['left_margin'].append((value['lines']['coords'][i][0] - value['xmin']) / page_width)
-                        grams['top_margin'].append((value['lines']['coords'][i][1] - value['ymin']) / page_height)
-                        grams['right_margin'].append((value['lines']['coords'][i][2] - value['xmin']) / page_width)
-                        grams['bottom_margin'].append((value['lines']['coords'][i][3] - value['ymin']) / page_height)
-                        grams['page_width'].append(page_width)
-                        grams['page_height'].append(page_height)
-                        grams['parses_as_date'].append(bool(list(datefinder.find_dates(raw_text))))
-                        grams['parses_as_amount'].append(
-                            bool(re.search(r'\d\.\d', raw_text)) and not grams['parses_as_date'][-1])
-                        grams['parses_as_number'].append(bool(re.search(r'\d', raw_text)))
-                        grams['label'].append(value['lines']['labels'][i])
+                for ngram in ngrammer(tokens):
+                    raw_text = ' '.join(ngram)
+                    grams['raw_text'].append(raw_text)
+                    grams['raw_text_last_word'].append(ngram[-1])
+                    grams['text_pattern'].append(re.sub('[a-z]', 'x', re.sub('[A-Z]', 'X', re.sub('\d', '0', re.sub(
+                        '[^a-zA-Z\d\ ]', '?', raw_text)))))
+                    grams['length'].append(len(ngram))
+                    grams['has_digits'].append(bool(re.search(r'\d', raw_text)))
+                    grams['left_margin'].append((value['lines']['coords'][i][0] - value['xmin']) / page_width)
+                    grams['top_margin'].append((value['lines']['coords'][i][1] - value['ymin']) / page_height)
+                    grams['right_margin'].append((value['lines']['coords'][i][2] - value['xmin']) / page_width)
+                    grams['bottom_margin'].append((value['lines']['coords'][i][3] - value['ymin']) / page_height)
+                    grams['page_width'].append(page_width)
+                    grams['page_height'].append(page_height)
+                    grams['parses_as_date'].append(bool(list(datefinder.find_dates(raw_text))))
+                    grams['parses_as_amount'].append(
+                        bool(re.search(r'\d\.\d', raw_text)) and not grams['parses_as_date'][-1])
+                    grams['parses_as_number'].append(bool(re.search(r'\d', raw_text)))
+                    grams['label'].append(value['lines']['labels'][i])
             pbar.update(1)
 
     return pd.DataFrame(data=grams)
