@@ -7,9 +7,9 @@ from keras.layers import Embedding
 from keras.layers import Convolution1D, GlobalMaxPooling1D
 from keras import regularizers
 from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 from keras.regularizers import L1L2
 from keras.callbacks import TensorBoard, ModelCheckpoint
-from keras.preprocessing.sequence import pad_sequences
 from sklearn.utils.class_weight import compute_class_weight
 
 np.random.seed(1337)
@@ -223,11 +223,10 @@ class InvoiceNetCloudScan:
 
         spatial_features = np.zeros([features.shape[0], features.shape[1]*4], dtype=np.float32)
 
+        zero_vec = np.zeros(features.shape[1], dtype=np.float32)
         for i in range(features.shape[0]):
-            spatial_features[i, :] = np.concatenate((features[data.at[i, 'closest_ngrams'][0]],
-                                                     features[data.at[i, 'closest_ngrams'][1]],
-                                                     features[data.at[i, 'closest_ngrams'][2]],
-                                                     features[data.at[i, 'closest_ngrams'][3]]))
+            vectors = [zero_vec if j == -1 else features[j] for j in data.at[i, 'closest_ngrams']]
+            spatial_features[i, :] = np.concatenate(vectors)
 
         features = np.concatenate((features, spatial_features), axis=1)
         return features, data['label'].values

@@ -78,6 +78,9 @@ def extract_features(path):
 
     print("\nExtracting features...\n")
 
+    # Filters the data into individual files and finds out the minimum and maximum
+    # x and y coordinates to estimate the width and height of each file.
+    # Also estimates the x coordinate for each token in each line for every file.
     for i, row in df.iterrows():
         if row['files'] not in files:
             files[row['files']] = {'lines': {'words': [], 'labels': [], 'ymin': [], 'ymax': []},
@@ -122,6 +125,8 @@ def extract_features(path):
 
     label_dict = {0: 0, 1: 1, 2: 2, 18: 3}
 
+    # Calculates N-grams of lengths ranging from 1-4 for each line in each
+    # file and calculates 17 features for each N-gram.
     with tqdm(total=len(files)) as pbar:
         for key, value in files.items():
             num_ngrams = len(grams['raw_text'])
@@ -164,6 +169,7 @@ def extract_features(path):
                     grams['page_height'].append(page_height)
                     grams['label'].append(label_dict[value['lines']['labels'][i]])
 
+            # Finds the closest N-grams on all 4 sides for each N-gram
             for i in range(num_ngrams, len(grams['raw_text'])):
                 grams['closest_ngrams'].append([-1] * 4)
                 distance = [sys.maxsize] * 6
