@@ -33,4 +33,4 @@ datefinder
 
 ## References: 
 
-- Rasmus Berg Palm, Ole Winther, Florian Laws, CloudScan - A configuration-free invoice analysis system using recurrent neural networks,  	arXiv:1708.07403v1 [cs.CL]
+- Rasmus Berg Palm, Ole Winther, Florian Laws, CloudScan - A configuration-free invoice analysis system using recurrent neural networks,  	[arXiv:1708.07403v1 [cs.CL]](https://arxiv.org/pdf/1708.07403.pdf)
