@@ -12,23 +12,32 @@ FEATURES:
 
 raw_text:               The raw text
 
-raw_text_last_word:     The raw text of the last word in the N-gram
+processed_text:         The raw text of the last word in the N-gram
 
 text_pattern:           The raw text, after replacing uppercase characters with X, 
                         lowercase with x, numbers with 0, repeating whitespace with 
                         single whitespace and the rest with ?
 
-bottom_margin:          Vertical coordinate of the bottom margin of the N-gram normalized to the page height
+bottom_margin:          Vertical coordinate of the bottom margin of the 
+                        N-gram normalized to the page height
 
-top_margin:             Vertical coordinate of the top margin of the N-gram normalized to the page height
+top_margin:             Vertical coordinate of the top margin of the 
+                        N-gram normalized to the page height
 
-right_margin:           Horizontal coordinate of the right margin of the N-gram normalized to the page width
+right_margin:           Horizontal coordinate of the right margin of the
+                        N-gram normalized to the page width
 
-left_margin:            Horizontal coordinate of the left margin of the N-gram normalized to the page width
+left_margin:            Horizontal coordinate of the left margin of the
+                        N-gram normalized to the page width
 
 has_digits:             Whether there are any digits 0-9 in the N-gram
 
 length:                 Number of characters in the N-gram
+
+position_on_line:       Count of words to the left of this N-gram normalized 
+                        to the count of total words on this line
+
+line_size:              The number of words on this line
 
 page_height:            The height of the page of this N-gram
 
@@ -83,9 +92,11 @@ def extract_features(path):
     del df
 
     grams = {'raw_text': [],
-             'raw_text_last_word': [],
+             'processed_text': [],
              'text_pattern': [],
              'length': [],
+             'line_size': [],
+             'position_on_line': [],
              'has_digits': [],
              'bottom_margin': [],
              'top_margin': [],
@@ -99,6 +110,8 @@ def extract_features(path):
              'label': []
              }
 
+    label_dict = {0: 0, 1: 1, 2: 2, 18: 3}
+
     with tqdm(total=len(files)) as pbar:
         for key, value in files.items():
             page_height = value['ymax'] - value['ymin']
@@ -106,24 +119,39 @@ def extract_features(path):
             for i in range(len(value['lines']['words'])):
                 tokens = re.sub(r"  ", " ", value['lines']['words'][i].strip()).split(' ')
                 for ngram in ngrammer(tokens):
+                    grams['parses_as_date'].append(0.0)
+                    grams['parses_as_amount'].append(0.0)
+                    grams['parses_as_number'].append(0.0)
+                    processed_text = []
+                    for word in ngram:
+                        if bool(list(datefinder.find_dates(word))):
+                            processed_text.append('date')
+                            grams['parses_as_date'][-1] = 1.0
+                        elif bool(re.search(r'\d\.\d', word)) or '$' in word:
+                            processed_text.append('amount')
+                            grams['parses_as_amount'][-1] = 1.0
+                        elif word.isnumeric():
+                            processed_text.append('number')
+                            grams['parses_as_number'][-1] = 1.0
+                        else:
+                            processed_text.append(word.lower())
                     raw_text = ' '.join(ngram)
+                    # line_length = (value['lines']['coords'][i][2] - value['lines']['coords'][i][0]) / len(raw_text)
                     grams['raw_text'].append(raw_text)
-                    grams['raw_text_last_word'].append(ngram[-1])
+                    grams['processed_text'].append(' '.join(processed_text))
                     grams['text_pattern'].append(re.sub('[a-z]', 'x', re.sub('[A-Z]', 'X', re.sub('\d', '0', re.sub(
                         '[^a-zA-Z\d\ ]', '?', raw_text)))))
-                    grams['length'].append(len(ngram))
-                    grams['has_digits'].append(bool(re.search(r'\d', raw_text)))
+                    grams['length'].append(len(' '.join(ngram)))
+                    grams['line_size'].append(len(tokens))
+                    grams['position_on_line'].append(tokens.index(ngram[0])/len(tokens))
+                    grams['has_digits'].append(1.0 if bool(re.search(r'\d', raw_text)) else 0.0)
                     grams['left_margin'].append((value['lines']['coords'][i][0] - value['xmin']) / page_width)
                     grams['top_margin'].append((value['lines']['coords'][i][1] - value['ymin']) / page_height)
                     grams['right_margin'].append((value['lines']['coords'][i][2] - value['xmin']) / page_width)
                     grams['bottom_margin'].append((value['lines']['coords'][i][3] - value['ymin']) / page_height)
                     grams['page_width'].append(page_width)
                     grams['page_height'].append(page_height)
-                    grams['parses_as_date'].append(bool(list(datefinder.find_dates(raw_text))))
-                    grams['parses_as_amount'].append(
-                        bool(re.search(r'\d\.\d', raw_text)) and not grams['parses_as_date'][-1])
-                    grams['parses_as_number'].append(bool(re.search(r'\d', raw_text)))
-                    grams['label'].append(value['lines']['labels'][i])
+                    grams['label'].append(label_dict[value['lines']['labels'][i]])
             pbar.update(1)
 
     return pd.DataFrame(data=grams)
