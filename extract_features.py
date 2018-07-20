@@ -6,7 +6,6 @@ from nltk import ngrams
 import argparse
 import datefinder
 from tqdm import tqdm
-from sklearn.feature_extraction import DictVectorizer
 
 """
 FEATURES:

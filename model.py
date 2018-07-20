@@ -187,8 +187,8 @@ class InvoiceNetCloudScan:
                                            monitor='val_loss', verbose=0, save_best_only=True,
                                            save_weights_only=False, mode='auto')
 
-        classes = np.unique(y_train)
-        class_weights = compute_class_weight('balanced', classes, y_train)
+        classes = np.unique(data['label'].values)
+        class_weights = compute_class_weight('balanced', classes, data['label'].values)
         d_class_weights = dict(enumerate(class_weights))
 
         self.model.fit([x_train], y_train,
@@ -229,7 +229,20 @@ class InvoiceNetCloudScan:
             spatial_features[i, :] = np.concatenate(vectors)
 
         features = np.concatenate((features, spatial_features), axis=1)
-        return features, data['label'].values
+
+        if self.config.oversample == 0:
+            return features, data['label'].values
+        else:
+            features = np.concatenate((features,
+                                       np.repeat(features[data['label'].values[data['label'].values != 0]]
+                                                 , self.config.oversample, axis=0)),
+                                      axis=0)
+            labels = np.concatenate((data['label'].values,
+                                     np.repeat(data['label'].values[data['label'].values != 0],
+                                               self.config.oversample, axis=0)),
+                                    axis=0)
+            return features, labels
+
 
     def load_weights(self, path):
         """Loads weights from the given model file"""

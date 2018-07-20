@@ -31,6 +31,8 @@ ap.add_argument("--num_output", type=int, default=4,
                 help="size of output layer")
 ap.add_argument("--shuffle", action='store_true',
                 help="shuffle dataset")
+ap.add_argument("--oversample", type=int, default=0,
+                help="oversample minority classes to prevent class imbalance")
 
 args = ap.parse_args()
 
