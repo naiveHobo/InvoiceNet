@@ -11,7 +11,7 @@ ap.add_argument("--data", default="data/dftrain.pk",
                 help="path to training data")
 ap.add_argument("--model_path", default="./model",
                 help="path to directory where trained model should be stored")
-ap.add_argument("--load_weights", default="./model/InvoiceNet.model",
+ap.add_argument("--load_weights", default="./model/InvoiceNetCloudScan.model",
                 help="path to load weights")
 ap.add_argument("--checkpoint_dir", default="./checkpoints",
                 help="path to directory where checkpoints should be stored")
@@ -19,18 +19,22 @@ ap.add_argument("--log_dir", default="./logs",
                 help="path to directory where tensorboard logs should be stored")
 ap.add_argument("--num_hidden", type=int, default=256,
                 help="size of hidden layer")
-ap.add_argument("--num_epochs", type=int, default=20,
+ap.add_argument("--epochs", type=int, default=20,
                 help="number of epochs")
-ap.add_argument("--batch_size", type=int, default=64,
+ap.add_argument("--batch_size", type=int, default=128,
                 help="size of mini-batch")
 ap.add_argument("--num_layers", type=int, default=1,
                 help="number of layers")
+ap.add_argument("--num_input", type=int, default=17,
+                help="size of input layer")
+ap.add_argument("--num_output", type=int, default=4,
+                help="size of output layer")
 ap.add_argument("--shuffle", action='store_true',
                 help="shuffle dataset")
 
 args = ap.parse_args()
 
-net = InvoiceNetCloudScan(input_size=17, num_classes=4, config=args)
+net = InvoiceNetCloudScan(config=args)
 features = extract_features(args.data)
 
 if args.mode == 'train':

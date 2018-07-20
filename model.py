@@ -75,7 +75,7 @@ class InvoiceNet:
             os.makedirs(self.config.model_path)
 
         tensorboard = TensorBoard(log_dir=self.config.log_dir, histogram_freq=1, write_graph=True)
-        modelcheckpoints = ModelCheckpoint(os.path.join(self.config.checkpoint_dir, "InvoiceNet_") +
+        modelcheckpoints = ModelCheckpoint(os.path.join(self.config.checkpoint_dir, "InvoiceNet") +
                                            ".{epoch:02d}-{val_loss:.2f}-{val_acc:.2f}.hdf5",
                                            monitor='val_loss', verbose=0, save_best_only=True,
                                            save_weights_only=False, mode='auto')
@@ -149,14 +149,15 @@ class InvoiceNet:
 
 class InvoiceNetCloudScan:
 
-    def __init__(self, input_size, num_classes, config):
-        features = Input(shape=(input_size,), dtype='float32', name='features')
+    def __init__(self, config):
+        features = Input(shape=(config.num_input*5,), dtype='float32', name='features')
+
         if config.num_layers == 2:
             output = Dense(config.num_hidden, activation='relu')(features)
             output = Dropout(0.5)(output)
         else:
             output = features
-        output = Dense(num_classes,
+        output = Dense(config.num_output,
                        activation='softmax',
                        kernel_regularizer=L1L2(l1=0.0, l2=0.1))(output)
         self.model = Model(inputs=[features], outputs=[output])
@@ -181,7 +182,7 @@ class InvoiceNetCloudScan:
         x_train, y_train = self.prepare_data(data)
 
         tensorboard = TensorBoard(log_dir=self.config.log_dir, histogram_freq=1, write_graph=True)
-        modelcheckpoints = ModelCheckpoint(os.path.join(self.config.checkpoint_dir, "InvoiceNet_") +
+        modelcheckpoints = ModelCheckpoint(os.path.join(self.config.checkpoint_dir, "InvoiceNetCloudScan") +
                                            ".{epoch:02d}-{val_loss:.2f}-{val_acc:.2f}.hdf5",
                                            monitor='val_loss', verbose=0, save_best_only=True,
                                            save_weights_only=False, mode='auto')
@@ -193,22 +194,22 @@ class InvoiceNetCloudScan:
         self.model.fit([x_train], y_train,
                        batch_size=self.config.batch_size,
                        verbose=True,
-                       epochs=self.config.num_epochs,
+                       epochs=self.config.epochs,
                        callbacks=[tensorboard, modelcheckpoints],
                        validation_split=0.125,
                        shuffle=self.config.shuffle,
                        class_weight=d_class_weights)
 
-        self.model.save_weights(os.path.join(self.config.model_path, "InvoiceNet.model"))
+        self.model.save_weights(os.path.join(self.config.model_path, "InvoiceNetCloudScan.model"))
 
     def prepare_data(self, data):
         if self.config.mode in 'train':
             tokenizer = Tokenizer()
             tokenizer.fit_on_texts(data.processed_text)
-            with open('data/tokenizer.pickle', 'wb') as handle:
+            with open('data/tokenizer.pk', 'wb') as handle:
                 pickle.dump(tokenizer, handle, protocol=3)
         else:
-            with open('data/tokenizer.pickle', 'rb') as handle:
+            with open('data/tokenizer.pk', 'rb') as handle:
                 tokenizer = pickle.load(handle)
         seq = tokenizer.texts_to_sequences(data.processed_text)
         padded_seq = pad_sequences(seq, maxlen=4)
@@ -219,6 +220,16 @@ class InvoiceNetCloudScan:
         for i in range(len(feature_list)):
             features[:, i] = data[feature_list[i]].values
         features = np.concatenate((padded_seq, features), axis=1)
+
+        spatial_features = np.zeros([features.shape[0], features.shape[1]*4], dtype=np.float32)
+
+        for i in range(features.shape[0]):
+            spatial_features[i, :] = np.concatenate((features[data.at[i, 'closest_ngrams'][0]],
+                                                     features[data.at[i, 'closest_ngrams'][1]],
+                                                     features[data.at[i, 'closest_ngrams'][2]],
+                                                     features[data.at[i, 'closest_ngrams'][3]]))
+
+        features = np.concatenate((features, spatial_features), axis=1)
         return features, data['label'].values
 
     def load_weights(self, path):
