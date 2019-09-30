@@ -12,7 +12,7 @@ sudo yum update
 sudo yum install tesseract
 
 # install dependencies
-sudo yum install libXext libSM libXrender
+sudo yum install poppler-utils libXext libSM libXrender
 
 # install virtualenv
 pip3 install --user virtualenv
