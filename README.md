@@ -10,6 +10,11 @@ sudo ./install.sh
 ```
 
 ## Instructions
+Activate the virtual environment created by the install script where InvoiceNet is installed:
+```
+source env/bin/activate
+```
+
 Before training, you need to create a vocabulary and embeddings that the model uses for learning.
 ```
 python3 embeddings.py --data_dir [directory containing training data]
