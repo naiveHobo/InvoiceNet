@@ -44,6 +44,8 @@ def main():
                     help="path to save tensorboard logs")
     ap.add_argument("--checkpoint_dir", type=str, default="checkpoints/",
                     help="directory to store model checkpoints")
+    ap.add_argument("--key", type=str, default="invoice_number", choices=['invoice_number', 'amount', 'date'],
+                    help="which field to train the model should learn to extract")
 
     args = ap.parse_args()
 
@@ -65,13 +67,13 @@ def main():
 
     train_files, val_files = train_test_split(filenames, test_size=args.val_size)
 
-    train_dataset, train_num_samples = get_data(data_path=train_files, key='invoice_number', training=True,
+    train_dataset, train_num_samples = get_data(data_path=train_files, key=args.key, training=True,
                                                 char_vocab=char_vocab, pattern_vocab=pattern_vocab,
                                                 height=args.height, width=args.width,
                                                 seq_length=args.seq_length, ngram_length=args.ngram_length,
                                                 batch_size=args.batch_size, shuffle=True)
 
-    val_dataset, val_num_samples = get_data(data_path=val_files, key='invoice_number',
+    val_dataset, val_num_samples = get_data(data_path=val_files, key=args.key,
                                             char_vocab=char_vocab, pattern_vocab=pattern_vocab,
                                             height=args.height, width=args.width,
                                             seq_length=args.seq_length, ngram_length=args.ngram_length,

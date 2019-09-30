@@ -5,7 +5,7 @@ sudo yum install -y python36u python36u-libs python36u-devel python36u-pip
 python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))'
 
 # install tesseract-ocr
-sudo yum install yum-tools
+sudo yum install yum-utils
 sudo yum-config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_7/
 sudo rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
 sudo yum update

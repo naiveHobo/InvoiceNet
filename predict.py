@@ -52,7 +52,7 @@ def main():
 
     print("Loaded trained embeddings and vocabulary from [{}]".format(args.embeddings_path))
 
-    data, num_samples = get_data(data_path=filenames, training=False,
+    data, num_samples = get_data(data_path=filenames, training=False, key='invoice_number',
                                  char_vocab=char_vocab, pattern_vocab=pattern_vocab,
                                  height=args.height, width=args.width,
                                  seq_length=args.seq_length, ngram_length=args.ngram_length, batch_size=1)
