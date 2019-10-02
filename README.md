@@ -6,7 +6,7 @@ To install dependencies and setup InvoiceNet on **CentOS 7**:
 ```
 git clone https://github.com/naiveHobo/invoicenet-gbr.git
 
-sudo ./install.sh
+./install.sh
 ```
 
 ## Instructions
