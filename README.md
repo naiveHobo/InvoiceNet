@@ -2,8 +2,6 @@
 Deep neural network to extract intelligent information from PDF invoice documents.
 
 
-## Training
-
 Prepare the data for training first by running the following command:
 ```
 python3 prepare_data.py --data_dir data/
