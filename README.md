@@ -1,44 +1,28 @@
 # InvoiceNet
-A deep neural network to extract information from invoice documents.
+Deep neural network to extract intelligent information from PDF invoice documents.
 
-## Installation
-To install dependencies and setup InvoiceNet on **CentOS 7**:
-```
-git clone https://github.com/naiveHobo/invoicenet-gbr.git
 
-sudo ./install.sh
-```
+## Training
 
-## Instructions
-Activate the virtual environment created by the install script where InvoiceNet is installed:
+Prepare the data for training first by running the following command:
 ```
-source env/bin/activate
+python3 prepare_data.py --data_dir data/
 ```
 
-Before training, you need to create a vocabulary and embeddings that the model uses for learning.
+Train InvoiceNet using the following command:
 ```
-python3 embeddings.py --data_dir [directory containing training data]
+PYTHONPATH="$PWD" python3 invoicenet/acp/train.py [field]
 ```
 
-#### Training:
-To start training InvoiceNet:
 
-```
-python3 train.py --data_dir [directory containing training data]
-```
-> To get more information about how to run the train.py script:
-> ```
-> python3 train.py -h
-> ```
+## Prediction
 
-#### Extraction:
-
-To extract information from invoice using the trained model:
-
+Prepare the data for prediction first by running the following command:
 ```
-python3 predict.py --data_dir [directory containing invoices] --model_path [path to trained model]
+python3 prepare_data.py --data_dir data/ --prediction
 ```
-> To get more information about how to run the predict.py script:
-> ```
-> python3 predict.py -h
-> ```
+
+Run InvoiceNet using the following command:
+```
+PYTHONPATH="$PWD" python3 invoicenet/acp/predict.py [field]
+```

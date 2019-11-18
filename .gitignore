@@ -1,3 +1,7 @@
-*__pycache__
-*.idea/
-*.ipynb_checkpoints
+.idea
+*.pyc
+.DS_Store
+invoicenet/acp/data/
+*/__pycache__/*
+env/
+data/
