@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+import tensorflow.contrib.rnn as rnn
 from tensorflow.contrib import layers
 from invoicenet.acp.data import RealData
 
@@ -48,35 +49,44 @@ class OptionalParser(Parser):
 
 class AmountParser(Parser):
     """
-    You should pre-train this parser to parse amounts otherwise it's hard to learn jointly.
+    You should pre-train this parser to parse amount otherwise it's hard to learn jointly.
     """
     seq_in = RealData.seq_in
     seq_out = RealData.seq_amount
     n_out = len(RealData.chars)
-    scope = 'parse/amounts'
+    scope = 'parse/amount'
 
     def __init__(self, bs):
-        os.makedirs("./models/amounts", exist_ok=True)
+        os.makedirs(r"./models/parsers/amount", exist_ok=True)
         self.bs = bs
 
     def restore(self):
-        return self.scope, "./models/amounts/best"
+        return self.scope, r"./models/parsers/amount/best"
 
     def parse(self, x, context, is_training):
         with tf.variable_scope(self.scope):
-            # Input RNN
-            in_rnn = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True, name="in_rnn"))
-            h_in = in_rnn(x)
-            h_in = tf.reshape(h_in, (self.bs, self.seq_in, 1, 256))  # (bs, seq_in, 1, 128)
+            with tf.variable_scope("encoder"):
+                lstm_fw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
+                lstm_bw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
+                (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(cell_fw=lstm_fw_cell,
+                                                                            cell_bw=lstm_bw_cell,
+                                                                            inputs=x,
+                                                                            dtype=tf.float32,
+                                                                            scope="BiLSTM")
 
-            # Output RNN
-            out_input = tf.zeros((self.bs, self.seq_out, 1))  # consider teacher forcing.
-            out_rnn = tf.keras.layers.LSTM(128, return_sequences=True, name="out_rnn")
-            h_out = out_rnn(out_input)
-            h_out = tf.reshape(h_out, (self.bs, 1, self.seq_out, 128))  # (bs, 1, seq_out, 128)
+                h_in = tf.concat([output_fw, output_bw], axis=2)
+                h_in = tf.reshape(h_in, (self.bs, self.seq_in, 1, 256))  # (bs, seq_in, 1, 128)
+
+            with tf.variable_scope("decoder"):
+                out_input = tf.zeros((self.bs, self.seq_out, 1))
+                out_input = tf.unstack(out_input, self.seq_out, 1)
+                cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
+                h_out, _ = rnn.static_rnn(cell, out_input, dtype=tf.float32)
+                h_out = tf.reshape(tf.concat(h_out, axis=-1), [self.bs, 1, self.seq_out, 128])
 
             # Bahdanau attention
-            att = tf.nn.tanh(layers.fully_connected(h_out, 128, activation_fn=None) + layers.fully_connected(h_in, 128, activation_fn=None))
+            att = tf.nn.tanh(layers.fully_connected(h_out, 128, activation_fn=None) + layers.fully_connected(h_in, 128,
+                                                                                                             activation_fn=None))
             att = layers.fully_connected(att, 1, activation_fn=None)  # (bs, seq_in, seq_out, 1)
             att = tf.nn.softmax(att, axis=1)  # (bs, seq_in, seq_out, 1)
 
@@ -90,14 +100,14 @@ class AmountParser(Parser):
             gen = tf.reshape(gen, (self.bs, self.seq_out, self.n_out))
 
             # Copy
-            copy = tf.log(tf.reduce_sum(att * tf.reshape(x, (self.bs, self.seq_in, 1, self.n_out)), axis=1) + 1e-8)  # (bs, seq_out, n_out)
+            copy = tf.log(tf.reduce_sum(att * tf.reshape(x, (self.bs, self.seq_in, 1, self.n_out)),
+                                        axis=1) + 1e-8)  # (bs, seq_out, n_out)
 
             output_logits = p_copy * copy + p_gen * gen
             return output_logits
 
 
 class DateParser(Parser):
-
     """
     You should pre-train this parser to parse dates otherwise it's hard to learn jointly.
     """
@@ -106,11 +116,11 @@ class DateParser(Parser):
     scope = 'parse/date'
 
     def __init__(self, bs):
-        os.makedirs("./models/dates", exist_ok=True)
+        os.makedirs(r"./models/parsers/date", exist_ok=True)
         self.bs = bs
 
     def restore(self):
-        return self.scope, "./models/dates/best"
+        return self.scope, r"./models/parsers/date/best"
 
     def parse(self, x, context, is_training):
         with tf.variable_scope(self.scope):

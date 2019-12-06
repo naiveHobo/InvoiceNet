@@ -79,7 +79,7 @@ class RealData(Data):
         self.data_dir = data_dir
         self.output_dict = UnkDict(self.chars)
         self.n_output = len(self.output_dict)
-        self.filenames = []
+        self.filenames = [os.path.basename(f) for f in glob.glob(self.data_dir + "**/*.json", recursive=True)]
 
     def shapes_types(self):
         return zip(*(
@@ -231,21 +231,16 @@ class RealData(Data):
         return strs
 
     def sample_generator(self):
-        doc_ids = [os.path.basename(f) for f in glob.glob(self.data_dir + "**/*.json", recursive=True)]
-
         exceptions = 0
         np.random.seed(0)
-        random.shuffle(doc_ids)
-        self.filenames = doc_ids
+        random.shuffle(self.filenames)
 
         spent_loading = 0
-        for i, doc_id in enumerate(doc_ids):
+        for i, doc_id in enumerate(self.filenames):
             try:
                 start = time.perf_counter()
                 doc = self._load_document(doc_id.strip())
                 spent_loading += (time.perf_counter() - start)
-                if i % 100 == 0:
-                    print("Data loader dps: %f" % ((i + 1) / spent_loading))
                 yield doc
             except GeneratorExit:
                 return

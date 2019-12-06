@@ -1,31 +1,32 @@
-import util
+from invoicenet.common import util
 
 from datetime import datetime
 
 from tensorflow.python.ops.losses.losses_impl import Reduction
 
-from model import Model
+from invoicenet.common.model import Model
 from invoicenet.parsing.parsers import *
 from invoicenet.parsing.data import *
 
 
 class Parser(Model):
     devices = util.get_devices()
-    batch_size = 128 * len(devices)
     context_size = 128
     experiment = datetime.now()
-    type = 'amounts'  # valid are ['dates', 'amounts']
-    output_length = {"dates": RealData.seq_date, "amounts": RealData.seq_amount}[type]
-    continue_from = None
 
-    def __init__(self):
+    def __init__(self, field, batch_size=128, restore=False):
+        self.batch_size = batch_size * len(self.devices)
+        self.type = field
+        self.output_length = {"date": RealData.seq_date, "amount": RealData.seq_amount}[self.type]
+        self.continue_from = './models/parsers/{}/best'.format(self.type) if restore else None
+
         self.train = train = TabSeparated('invoicenet/parsing/data/%s/train.tsv' % self.type, self.output_length)
         self.train_iterator = self.iterator(train)
 
         valid = TabSeparated('invoicenet/parsing/data/%s/valid.tsv' % self.type, self.output_length)
         self.valid_iterator = self.iterator(valid)
 
-        parser = {'amounts': AmountParser(self.batch_size), 'dates': DateParser(self.batch_size)}[self.type]
+        parser = {'amount': AmountParser(self.batch_size), 'date': DateParser(self.batch_size)}[self.type]
 
         print("Building graph...")
         config = tf.ConfigProto(allow_soft_placement=False)
@@ -81,17 +82,7 @@ class Parser(Model):
         ).repeat(-1).batch(self.batch_size).prefetch(16).make_one_shot_iterator()
 
     def train_batch(self):
-        step = self.session.run(self.global_step)
-
-        if step % 1000 == 0:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            _, loss, sources, actual, targets, step = self.session.run([self.train_step, self.loss, self.sources, self.actual, self.targets, self.global_step], {self.is_training_ph: True}, options=run_options, run_metadata=run_metadata)
-        elif step % 100 == 0:
-            _, loss, sources, actual, targets, step = self.session.run([self.train_step, self.loss, self.sources, self.actual, self.targets, self.global_step], {self.is_training_ph: True})
-        else:
-            _, loss = self.session.run([self.train_step, self.loss], {self.is_training_ph: True})
-
+        _, loss = self.session.run([self.train_step, self.loss], {self.is_training_ph: True})
         return loss
 
     def val_batch(self):
@@ -99,13 +90,7 @@ class Parser(Model):
         return loss
 
     def save(self, name):
-        self.saver.save(self.session, "./models/%s/%s" % (self.type, name))
+        self.saver.save(self.session, "./models/parsers/%s/%s" % (self.type, name))
 
     def load(self, name):
         self.saver.restore(self.session, name)
-
-
-if __name__ == '__main__':
-    m = Parser()
-    m.train_batch()
-    m.val_batch()
