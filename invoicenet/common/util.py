@@ -8,6 +8,8 @@ from pytesseract import Output
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import device_lib
+import datefinder
+import datetime
 
 
 def print_vars(vars):
@@ -66,6 +68,15 @@ class TextParser:
         self.template['date'] = [r'\d{1,2}[\/\\\.-]\d{1,2}[\/\\\.-]\d{2,4}', r'\d{2,4}[\/\\\.-]\d{1,2}[\/\\\.-]\d{1,2}']
 
     def parse(self, text, key):
+        if key == 'date':
+            try:
+                matches = [date for date in datefinder.find_dates(text) if date <= datetime.datetime.today()]
+                if matches:
+                    return True
+                else:
+                    return False
+            except Exception as exp:
+                return False
         if key not in self.template:
             return False
         for regex in self.template[key]:
@@ -74,6 +85,15 @@ class TextParser:
         return False
 
     def find(self, text, key):
+        if key == 'date':
+            try:
+                matches = [date for date in datefinder.find_dates(text) if date <= datetime.datetime.today()]
+                if len(matches) > 0:
+                    return [match.strftime('%m-%d-%Y') for match in matches]
+                else:
+                    return []
+            except Exception as exp:
+                return []
         values = []
         if key not in self.template:
             return values
@@ -157,5 +177,7 @@ def normalize(text, key):
         else:
             text = splits[0] + '.' + splits[1][:2]
     else:
-        text = text.replace(".", '-').replace('/', '-')
+        matches = [date for date in datefinder.find_dates(text) if date <= datetime.datetime.today()]
+        if matches:
+            text = matches[0].strftime('%m-%d-%Y')
     return text

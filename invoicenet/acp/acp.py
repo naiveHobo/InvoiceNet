@@ -8,7 +8,6 @@ from invoicenet.parsing.parsers import DateParser, AmountParser, NoOpParser, Opt
 
 
 class AttendCopyParse(Model):
-
     devices = util.get_devices()
     n_hid = 32
     frac_ce_loss = 0.0001
@@ -26,9 +25,17 @@ class AttendCopyParse(Model):
         self.amount_parser = AmountParser(self.batch_size)
 
         self.field_parsers = {
-            'number': self.noop_parser,
-            'date': self.date_parser,
-            'amount': self.amount_parser
+            "vendorname": self.noop_parser,
+            "invoicedate": self.date_parser,
+            "invoicenumber": self.noop_parser,
+            "amountnet": self.amount_parser,
+            "amounttax": self.amount_parser,
+            "amounttotal": self.amount_parser,
+            "vatrate": self.noop_parser,
+            "vatid": self.opt_noop_parser,
+            "taxid": self.opt_noop_parser,
+            "iban": self.opt_noop_parser,
+            "bic": self.opt_noop_parser
         }
 
         self.restore_all_path = './models/invoicenet/{}/best'.format(self.field) if restore else None
@@ -62,14 +69,30 @@ class AttendCopyParse(Model):
         self.parses_ph = tf.placeholder(tf.float32, name="parses")
         self.found_ph = tf.placeholder(tf.float32, name="found")
         # targets
-        self.number_ph = tf.placeholder(tf.int32, name="number")
-        self.date_ph = tf.placeholder(tf.int32, name="date")
-        self.total_ph = tf.placeholder(tf.int32, name="total")
+        self.vendorname_ph = tf.placeholder(tf.int32, name="vendorname")
+        self.invoicedate_ph = tf.placeholder(tf.int32, name="invoicedate")
+        self.invoicenumber_ph = tf.placeholder(tf.int32, name="invoicenumber")
+        self.amountnet_ph = tf.placeholder(tf.int32, name="amountnet")
+        self.amounttax_ph = tf.placeholder(tf.int32, name="amounttax")
+        self.amounttotal_ph = tf.placeholder(tf.int32, name="amounttotal")
+        self.vatrate_ph = tf.placeholder(tf.int32, name="vatrate")
+        self.vatid_ph = tf.placeholder(tf.int32, name="vatid")
+        self.taxid_ph = tf.placeholder(tf.int32, name="taxid")
+        self.iban_ph = tf.placeholder(tf.int32, name="iban")
+        self.bic_ph = tf.placeholder(tf.int32, name="bic")
 
         self.targets = {
-            'number': self.number_ph,
-            'date': self.date_ph,
-            'amount': self.total_ph
+            "vendorname": self.vendorname_ph,
+            "invoicedate": self.invoicedate_ph,
+            "invoicenumber": self.invoicenumber_ph,
+            "amountnet": self.amountnet_ph,
+            "amounttax": self.amounttax_ph,
+            "amounttotal": self.amounttotal_ph,
+            "vatrate": self.vatrate_ph,
+            "vatid": self.vatid_ph,
+            "taxid": self.taxid_ph,
+            "iban": self.iban_ph,
+            "bic": self.bic_ph
         }
 
         h, w = train.im_size
@@ -77,7 +100,8 @@ class AttendCopyParse(Model):
         seq_in = train.seq_in
         n_out = train.n_output
 
-        field_idx = ['number', 'date', 'amount'].index(self.field)
+        field_idx = ["vendorname", "invoicedate", "invoicenumber", "amountnet", "amounttax", "amounttotal", "vatrate",
+                     "vatid", "taxid", "iban", "bic"].index(self.field)
 
         def dilated_block(x):
             return tf.concat(
@@ -269,6 +293,7 @@ class AttendCopyParse(Model):
         os.makedirs(out_path, exist_ok=True)
         extracts = {}
         for actual, filename in zip(actuals, self.test.filenames):
+            print("Prediciton: {}\t\tFilename: {}".format(actual, filename))
             predictions = {}
             if os.path.exists(os.path.join(out_path, filename)):
                 with open(os.path.join(out_path, filename), 'r') as fp:
@@ -287,7 +312,7 @@ class AttendCopyParse(Model):
         self.saver.restore(self.session, name)
 
     def get_placeholders(self, batch, is_training):
-        memories, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, number, date, total, found = batch
+        memories, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, vendorname, invoicedate, invoicenumber, amountnet, amounttax, amounttotal, vatrate, vatid, taxid, iban, bic, found = batch
         return {
             self.is_training_ph: is_training,
             self.memories_ph: memories,
@@ -297,8 +322,16 @@ class AttendCopyParse(Model):
             self.char_indices_ph: char_indices,
             self.memory_mask_ph: memory_mask,
             self.parses_ph: parses,
-            self.number_ph: number,
-            self.date_ph: date,
-            self.total_ph: total,
+            self.vendorname_ph: vendorname,
+            self.invoicedate_ph: invoicedate,
+            self.invoicenumber_ph: invoicenumber,
+            self.amountnet_ph: amountnet,
+            self.amounttax_ph: amounttax,
+            self.amounttotal_ph: amounttotal,
+            self.vatrate_ph: vatrate,
+            self.vatid_ph: vatid,
+            self.taxid_ph: taxid,
+            self.iban_ph: iban,
+            self.bic_ph: bic,
             self.found_ph: found
         }

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # install python3 and pip3
 sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
 sudo yum update

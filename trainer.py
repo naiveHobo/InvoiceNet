@@ -22,13 +22,21 @@ class Trainer(Frame):
         self.args = {
             "data_dir": "",
             "prepared_data": "processed_data",
-            "field": "amount",
+            "field": "invoicenumber",
             "batch_size": 8
         }
         self.fields = {
-            'amount': True,
-            'number': True,
-            'date': False
+            "vendorname": True,
+            "invoicedate": True,
+            "invoicenumber": True,
+            "amountnet": True,
+            "amounttax": True,
+            "amounttotal": True,
+            "vatrate": True,
+            "vatid": True,
+            "taxid": True,
+            "iban": True,
+            "bic": True
         }
         self.textboxes = {}
         self.thread = None
@@ -121,7 +129,7 @@ class Trainer(Frame):
         Label(field_param, text="Field:", bg=self.background,
               anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=BOTH)
         self.field_text = StringVar(field_param)
-        self.field_text.set("amount")
+        self.field_text.set("invoicenumber")
 
         keys = list(self.fields.keys())
         field_list = OptionMenu(field_param, self.field_text, *keys)
@@ -292,46 +300,50 @@ class Trainer(Frame):
         for phase, filenames in [('train', train_files), ('val', val_files)]:
             self.logger.log("Preparing {} data...".format(phase))
             for filename in tqdm(filenames):
-                try:
-                    page = pdf2image.convert_from_path(filename)[0]
-                    page.save(os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'png'))
+                # try:
+                page = pdf2image.convert_from_path(filename)[0]
+                page.save(os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'png'))
 
-                    height = page.size[1]
-                    width = page.size[0]
+                height = page.size[1]
+                width = page.size[0]
 
-                    ngrams = util.create_ngrams(page)
-                    for ngram in ngrams:
-                        if "amount" in ngram["parses"]:
-                            ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
-                        if "date" in ngram["parses"]:
-                            ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
+                ngrams = util.create_ngrams(page)
+                for ngram in ngrams:
+                    if "amount" in ngram["parses"]:
+                        ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
+                    if "date" in ngram["parses"]:
+                        ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-                    with open(filename[:-3] + 'json', 'r') as fp:
-                        labels = simplejson.loads(fp.read())
+                with open(filename[:-3] + 'json', 'r') as fp:
+                    labels = simplejson.loads(fp.read())
 
-                    fields = {}
-                    if "amount" in labels:
-                        fields["amount"] = util.normalize(labels["amount"], key="amount")
-                    if "date" in labels:
-                        fields["date"] = util.normalize(labels["date"], key="date")
-                    if "number" in labels:
-                        fields["number"] = labels["number"]
+                fields = {}
+                amount_fields = ["amountnet", "amounttax", "amounttotal"]
+                date_fields = ["invoicedate"]
 
-                    data = {
-                        "fields": fields,
-                        "nGrams": ngrams,
-                        "height": height,
-                        "width": width,
-                        "filename": os.path.abspath(
-                            os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'png'))
-                    }
+                for field in labels:
+                    if field in amount_fields:
+                        fields[field] = util.normalize(labels[field], key="amount")
+                    elif field in date_fields:
+                        fields[field] = util.normalize(labels[field], key="date")
+                    elif field in self.fields:
+                        fields[field] = labels[field]
 
-                    with open(os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'json'),
-                              'w') as fp:
-                        fp.write(simplejson.dumps(data, indent=2))
+                data = {
+                    "fields": fields,
+                    "nGrams": ngrams,
+                    "height": height,
+                    "width": width,
+                    "filename": os.path.abspath(
+                        os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'png'))
+                }
 
-                except Exception as exp:
-                    self.logger.log("Skipping {} : {}".format(filename, exp))
+                with open(os.path.join(self.args["prepared_data"], phase, os.path.basename(filename)[:-3] + 'json'),
+                          'w') as fp:
+                    fp.write(simplejson.dumps(data, indent=2))
+
+                # except Exception as exp:
+                #     self.logger.log("Skipping {} : {}".format(filename, exp))
 
                 sample_idx += 1
                 self.progress_label.configure(text="Preparing data [{}/{}]:".format(sample_idx, total_samples))

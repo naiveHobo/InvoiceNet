@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(name='InvoiceNet',
                  version='0.1',
                  description='A deep neural network to extract intelligent information from invoice documents',
-                 url='https://github.com/naiveHobo/invoiceNet--parserr',
+                 url='https://github.com/naiveHobo/invoiceNet--gbr',
                  author='naiveHobo',
                  author_email='sarthakmittal2608@gmail.com',
                  license='MIT',
@@ -21,5 +21,6 @@ setuptools.setup(name='InvoiceNet',
                      "pyyaml",
                      "opencv-python",
                      "keras",
-                     "simplejson"
+                     "simplejson",
+                     "datefinder"
                  ])

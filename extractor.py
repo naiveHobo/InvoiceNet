@@ -21,12 +21,19 @@ class Extractor(Frame):
             "data_file": "",
             "pred_dir": "predictions",
             "prepared_data": "processed_data",
-            "field": "amount"
         }
         self.fields = {
-            'amount': True,
-            'number': True,
-            'date': False
+            "vendorname": True,
+            "vatrate": True,
+            "invoicenumber": True,
+            "taxid": True,
+            "amounttax": True,
+            "bic": True,
+            "invoicedate": True,
+            "vatid": True,
+            "amountnet": True,
+            "iban": True,
+            "amounttotal": True
         }
         self.textboxes = {}
         self.checkboxes = {}
@@ -93,7 +100,7 @@ class Extractor(Frame):
         data_dir_param.grid(row=2, column=1, pady=10, padx=20)
         prepare_dir_param.grid(row=3, column=1, pady=10, padx=20)
         pred_dir_param.grid(row=4, column=1, pady=10, padx=20)
-        field_param.grid(row=1, column=2, rowspan=4, pady=10, padx=20, sticky='news')
+        field_param.grid(row=1, column=2, rowspan=4, pady=10, padx=10, sticky='news')
 
         # Invoice File
         data_file_frame = Frame(data_file_param, bg=self.background, bd=0, relief=SUNKEN)
@@ -157,7 +164,7 @@ class Extractor(Frame):
 
         # Field Checkboxes
         field_frame = Frame(field_param, bg='#353535', bd=1, relief=SUNKEN)
-        field_frame.pack(expand=True, fill=BOTH, pady=20)
+        field_frame.pack(expand=True, fill=BOTH, pady=10)
 
         Label(field_frame, text="Field:", width=30, bg='#353535',
               anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=X, padx=5, pady=5)
@@ -165,22 +172,25 @@ class Extractor(Frame):
         checkbox_frame = Frame(field_frame, bg='#353535', bd=1, relief=SUNKEN)
         checkbox_frame.pack(expand=True, fill=BOTH, side=BOTTOM)
 
-        checkbox_frame.columnconfigure(0, weight=0)
+        checkbox_frame.columnconfigure(0, weight=1)
         checkbox_frame.columnconfigure(1, weight=1)
+        checkbox_frame.columnconfigure(2, weight=1)
+        checkbox_frame.columnconfigure(3, weight=1)
+        for i in range(len(self.fields) // 2):
+            checkbox_frame.rowconfigure(i, weight=1)
         for idx, key in enumerate(self.fields):
-            checkbox_frame.rowconfigure(idx, weight=1)
             self.checkboxes[key] = BooleanVar(checkbox_frame, value=False)
-
             state = False
             if os.path.exists('./models/invoicenet/'):
                 state = key in os.listdir('./models/invoicenet/')
 
             Checkbutton(checkbox_frame, fg="black", bg='#353535',
                         activebackground=self.background, variable=self.checkboxes[key], anchor='w',
-                        state="normal" if self.fields[key] and state else "disabled").grid(row=idx, column=0,
+                        state="normal" if self.fields[key] and state else "disabled").grid(row=idx // 2,
+                                                                                           column=2 if idx % 2 else 0,
                                                                                            sticky='news', padx=(10, 0))
             Label(checkbox_frame, text=key, bg='#353535',
-                  anchor='w', fg="white", font="Arial 8").grid(row=idx, column=1, sticky='news')
+                  anchor='w', fg="white", font="Arial 8").grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='news')
 
         # Prepare Data Button
         HoverButton(param_frame, image_path=r'widgets/prepare.png', command=self._prepare_data,
@@ -240,7 +250,6 @@ class Extractor(Frame):
 
         self.logger.log("Extracted information stored in '{}'".format(self.args["pred_dir"]))
         self.start_button.configure(state='normal')
-        self.running = False
 
     def _get_inputs(self):
         self.args["data_file"] = self.textboxes["data_file"].get("1.0", 'end-1c')
@@ -310,14 +319,14 @@ class Extractor(Frame):
         data_dir = os.path.join(self.args["prepared_data"], 'predict')
         os.makedirs(data_dir, exist_ok=True)
 
-        filenames = [os.path.abspath(f) for f in glob.glob(data_dir + "**/*.json")]
-        filenames += [os.path.abspath(f) for f in glob.glob(data_dir + "**/*.png")]
+        filenames = [os.path.abspath(f) for f in glob.glob(data_dir + "**/*.json", recursive=True)]
+        filenames += [os.path.abspath(f) for f in glob.glob(data_dir + "**/*.png", recursive=True)]
         for f in filenames:
-            os.remove(os.path.join(self.args["data_dir"], f))
+            os.remove(f)
 
         filenames = []
         if self.args["data_dir"] and os.path.exists(self.args["data_dir"]):
-            filenames = [os.path.abspath(f) for f in glob.glob(self.args["data_dir"] + "**/*.pdf")]
+            filenames = [os.path.abspath(f) for f in glob.glob(self.args["data_dir"] + "**/*.pdf", recursive=True)]
         if self.args["data_file"] and os.path.exists(self.args["data_file"]):
             filenames += [self.args["data_file"]]
 
@@ -341,9 +350,17 @@ class Extractor(Frame):
                     if "date" in ngram["parses"]:
                         ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-                fields = {"amount": '0',
-                          "date": '0',
-                          "number": '0'}
+                fields = {"vendorname": '0',
+                          "invoicedate": '0',
+                          "invoicenumber": '0',
+                          "amountnet": '0',
+                          "amounttax": '0',
+                          "amounttotal": '0',
+                          "vatrate": '0',
+                          "vatid": '0',
+                          "taxid": '0',
+                          "iban": '0',
+                          "bic": '0'}
 
                 data = {
                     "fields": fields,

@@ -69,9 +69,17 @@ class RealData(Data):
     n_memories = 4
     parses_idx = {'date': 0, 'amount': 1}
     fields = [
-        'number',
-        'date',
-        'amount'
+        "vendorname",
+        "invoicedate",
+        "invoicenumber",
+        "amountnet",
+        "amounttax",
+        "amounttotal",
+        "vatrate",
+        "vatid",
+        "taxid",
+        "iban",
+        "bic"
     ]
 
     def __init__(self, data_dir):
@@ -92,10 +100,18 @@ class RealData(Data):
             (self.im_size, tf.int32),  # char_indices
             (self.im_size, tf.float32),  # memory_mask
             (self.im_size + (4, 2), tf.float32),  # parses
-            ((self.seq_long,), tf.int32),  # number
-            ((self.seq_date,), tf.int32),  # date
-            ((self.seq_amount,), tf.int32),  # amount
-            ((3,), tf.float32)  # found
+            ((self.seq_long,), tf.int32),  # vendorname
+            ((self.seq_date,), tf.int32),  # invoicedate
+            ((self.seq_long,), tf.int32),  # invoicenumber
+            ((self.seq_amount,), tf.int32),  # amountnet
+            ((self.seq_amount,), tf.int32),  # amounttax
+            ((self.seq_amount,), tf.int32),  # amounttotal
+            ((self.seq_long,), tf.int32),  # vatrate
+            ((self.seq_long,), tf.int32),  # vatid
+            ((self.seq_long,), tf.int32),  # taxid
+            ((self.seq_long,), tf.int32),  # iban
+            ((self.seq_long,), tf.int32),  # bic
+            ((11,), tf.float32)  # found
         ))
 
     def _encode_ngrams(self, n_grams, height, width):
@@ -201,19 +217,29 @@ class RealData(Data):
                 if k == "amount":
                     strings_in_doc.add(preprocess_amount(p))
 
-        word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams, page['height'], page['width'])
+        word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams,
+                                                                                                        page['height'],
+                                                                                                        page['width'])
 
         fields = page['fields']
-        amount_fields = {'amount'}
+        amount_fields = {"amountnet", "amounttax", "amounttotal"}
         fields = {k: (preprocess_amount(v) if k in amount_fields else v) for k, v in fields.items()}
 
         found = [1.0 if fields[f] in strings_in_doc else 0.0 for f in self.fields]
 
-        number = self._encode_sequence(fields['number'], self.seq_long)
-        date = self._encode_sequence(fields['date'], self.seq_date)
-        total = self._encode_sequence(fields['amount'], self.seq_amount)
+        vendorname = self._encode_sequence(fields['vendorname'], self.seq_long)
+        invoicedate = self._encode_sequence(fields['invoicedate'], self.seq_date)
+        invoicenumber = self._encode_sequence(fields['invoicenumber'], self.seq_long)
+        amountnet = self._encode_sequence(fields['amountnet'], self.seq_amount)
+        amounttax = self._encode_sequence(fields['amounttax'], self.seq_amount)
+        amounttotal = self._encode_sequence(fields['amounttotal'], self.seq_amount)
+        vatrate = self._encode_sequence(fields['vatrate'], self.seq_long)
+        vatid = self._encode_sequence(fields['vatid'], self.seq_long)
+        taxid = self._encode_sequence(fields['taxid'], self.seq_long)
+        iban = self._encode_sequence(fields['iban'], self.seq_long)
+        bic = self._encode_sequence(fields['bic'], self.seq_long)
 
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, number, date, total, found
+        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, vendorname, invoicedate, invoicenumber, amountnet, amounttax, amounttotal, vatrate, vatid, taxid, iban, bic, found
 
     def array_to_str(self, arr):
         """

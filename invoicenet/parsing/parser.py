@@ -68,7 +68,7 @@ class Parser(Model):
 
         self.session.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
-        util.print_vars(tf.trainable_variables())
+        # util.print_vars(tf.trainable_variables())
 
         if self.continue_from:
             print("Restoring " + self.continue_from + "...")
