@@ -1,13 +1,19 @@
 # InvoiceNet
 Deep neural network to extract intelligent information from PDF invoice documents.
 
+## Installation
+To install InvoiceNet, run the following commands (CentOS 7):
+```
+git clone https://github.com/naiveHobo/invoicenet-gbr.git
+cd invoicenet-gbr/
 
-## Dependencies
+# Run installation script
+./install.sh
 
-Before running InvoiceNet, you need to install a few dependencies:
-- [tesseract-ocr](https://github.com/tesseract-ocr/tesseract/wiki)
-- [poppler](https://poppler.freedesktop.org/)
-
+# Source virtual environment
+source env/bin/activate
+```
+The install.sh script will install all the dependencies, create a virtual enviroment, and install InvoiceNet in the virtual environment.
 
 ## Using the GUI
 
@@ -16,13 +22,13 @@ InvoiceNet provides you with a GUI to train a model on your data and extract inf
 Run the following command to run the trainer GUI:
 
 ```
-python3 trainer.py
+python trainer.py
 ```
 
 Run the following command to run the extractor GUI:
 
 ```
-python3 extractor.py
+python extractor.py
 ```
 
 You need to prepare the data for training and extraction first. 
@@ -56,12 +62,12 @@ The JSON labels should have the following format:
 
 Prepare the data for training first by running the following command:
 ```
-python3 prepare_data.py --data_dir train_data/
+python prepare_data.py --data_dir train_data/
 ```
 
 Train InvoiceNet using the following command:
 ```
-python3 train.py --field [amount|date|number] --batch_size 8
+python train.py --field [vendorname|invoicedate|invoicenumber|amountnet|amounttax|amounttotal|vatrate|vatid|taxid|iban|bic] --batch_size 8
 ```
 
 ---
@@ -79,10 +85,10 @@ predict_data/
 
 Prepare the data for prediction first by running the following command:
 ```
-python3 prepare_data.py --data_dir predict_data/ --prediction 
+python prepare_data.py --data_dir predict_data/ --prediction 
 ```
 
 Run InvoiceNet using the following command:
 ```
-python3 predict.py --field [amount|date|number]
+python predict.py --field [vendorname|invoicedate|invoicenumber|amountnet|amounttax|amounttotal|vatrate|vatid|taxid|iban|bic]
 ```
