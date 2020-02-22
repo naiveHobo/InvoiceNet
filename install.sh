@@ -2,7 +2,7 @@
 # install python3 and pip3
 sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
 sudo yum update
-sudo yum install -y python36u python36u-libs python36u-devel python36u-pip
+sudo yum install -y python36u python36u-libs python36u-devel python36u-pip python36u-tkinter
 python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))'
 
 # install tesseract-ocr
