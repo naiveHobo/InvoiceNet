@@ -15,6 +15,32 @@ source env/bin/activate
 ```
 The install.sh script will install all the dependencies, create a virtual enviroment, and install InvoiceNet in the virtual environment.
 
+## Data Preparation
+Your training data should be in the following format:
+
+```
+train_data/
+    invoice1.pdf
+    invoice1.json
+    invoice2.pdf
+    invoice2.json
+    ...
+```
+
+The JSON labels should have the following format:
+```
+{
+ "vendorname":"Hetzner Online GmbH",
+ "invoicedate":"12-01-2017",
+ "invoicenumber":"R0007546449",
+ "amounttotal":"137.51",
+ ... other fields
+}
+```
+
+To begin the data preparation process, click on the "Prepare Data" button in the GUI or follow the instructions below if you're using the CLI.
+
+
 ## Using the GUI
 
 InvoiceNet provides you with a GUI to train a model on your data and extract information from invoice documents using this trained model
@@ -39,26 +65,6 @@ Once the data is prepared, you can start training/prediction by clicking the **S
 ## Using the CLI
 
 ### Training 
-
-Your training data should be in the following format:
-
-```
-train_data/
-    invoice1.pdf
-    invoice1.json
-    invoice2.pdf
-    invoice2.json
-    ...
-```
-
-The JSON labels should have the following format:
-```
-{
- "amount": "6,245.80",
- "number": "7402488304"
- ... other fields
-}
-```
 
 Prepare the data for training first by running the following command:
 ```
