@@ -23,7 +23,7 @@ class Trainer(Frame):
             "data_dir": "",
             "prepared_data": "processed_data",
             "field": "invoicenumber",
-            "batch_size": 8
+            "batch_size": 4
         }
         self.fields = {
             "vendorname": True,
@@ -142,8 +142,8 @@ class Trainer(Frame):
         Label(batch_param, text="Batch Size:", bg=self.background,
               anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=BOTH)
         self.batch_text = StringVar(batch_param)
-        self.batch_text.set("8")
-        batch_list = OptionMenu(batch_param, self.batch_text, "4", "8", "16", "32")
+        self.batch_text.set("4")
+        batch_list = OptionMenu(batch_param, self.batch_text, "1", "2", "4", "8", "16", "32")
         batch_list.configure(highlightthickness=0, width=20, bg='#ffffff')
         batch_list.pack(side=BOTTOM)
 
