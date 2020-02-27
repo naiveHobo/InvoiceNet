@@ -37,13 +37,13 @@ def main():
     args = ap.parse_args()
 
     if not args.prediction:
-        os.makedirs(os.path.join(args.out_dir, 'test'), exist_ok=True)
+        os.makedirs(os.path.join(args.out_dir, 'predict'), exist_ok=True)
         filenames = [os.path.abspath(f) for f in glob.glob(args.data_dir + "**/*.pdf", recursive=True)]
         print("Total: {}".format(len(filenames)))
         for filename in tqdm(filenames):
             try:
                 page = pdf2image.convert_from_path(filename)[0]
-                page.save(os.path.join(args.out_dir, "test", os.path.basename(filename)[:-3] + 'png'))
+                page.save(os.path.join(args.out_dir, "predict", os.path.basename(filename)[:-3] + 'png'))
 
                 height = page.size[1]
                 width = page.size[0]
@@ -73,10 +73,10 @@ def main():
                     "height": height,
                     "width": width,
                     "filename": os.path.abspath(
-                        os.path.join(args.out_dir, 'test', os.path.basename(filename)[:-3] + 'png'))
+                        os.path.join(args.out_dir, 'predict', os.path.basename(filename)[:-3] + 'png'))
                 }
 
-                with open(os.path.join(args.out_dir, 'test', os.path.basename(filename)[:-3] + 'json'), 'w') as fp:
+                with open(os.path.join(args.out_dir, 'predict', os.path.basename(filename)[:-3] + 'json'), 'w') as fp:
                     fp.write(simplejson.dumps(data, indent=2))
 
             except Exception as exp:
