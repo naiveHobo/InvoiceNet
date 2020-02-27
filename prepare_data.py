@@ -13,7 +13,7 @@ def main():
 
     ap.add_argument("--data_dir", type=str, required=True,
                     help="path to directory containing invoice document images")
-    ap.add_argument("--out_dir", type=str, default='invoicenet/acp/data/',
+    ap.add_argument("--out_dir", type=str, default='processed_data/',
                     help="path to save prepared data")
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
