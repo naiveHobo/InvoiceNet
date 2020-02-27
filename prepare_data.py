@@ -7,6 +7,20 @@ from tqdm import tqdm
 
 from invoicenet.common import util
 
+FIELDS = [
+    "vendorname",
+    "invoicedate",
+    "invoicenumber",
+    "amountnet",
+    "amounttax",
+    "amounttotal",
+    "vatrate",
+    "vatid",
+    "taxid",
+    "iban",
+    "bic"
+]
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -41,9 +55,17 @@ def main():
                     if "date" in ngram["parses"]:
                         ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-                fields = {"amount": '0',
-                          "date": '0',
-                          "number": '0'}
+                fields = {"vendorname": '0',
+                          "invoicedate": '0',
+                          "invoicenumber": '0',
+                          "amountnet": '0',
+                          "amounttax": '0',
+                          "amounttotal": '0',
+                          "vatrate": '0',
+                          "vatid": '0',
+                          "taxid": '0',
+                          "iban": '0',
+                          "bic": '0'}
 
                 data = {
                     "fields": fields,
@@ -97,12 +119,16 @@ def main():
                     labels = simplejson.loads(fp.read())
 
                 fields = {}
-                if "amount" in labels:
-                    fields["amount"] = util.normalize(labels["amount"], key="amount")
-                if "date" in labels:
-                    fields["date"] = util.normalize(labels["date"], key="date")
-                if "number" in labels:
-                    fields["number"] = labels["number"]
+                amount_fields = ["amountnet", "amounttax", "amounttotal"]
+                date_fields = ["invoicedate"]
+
+                for field in labels:
+                    if field in amount_fields:
+                        fields[field] = util.normalize(labels[field], key="amount")
+                    elif field in date_fields:
+                        fields[field] = util.normalize(labels[field], key="date")
+                    elif field in FIELDS:
+                        fields[field] = labels[field]
 
                 data = {
                     "fields": fields,
