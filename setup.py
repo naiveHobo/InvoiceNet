@@ -15,6 +15,7 @@ setuptools.setup(name='InvoiceNet',
                  packages=setuptools.find_packages(),
                  install_requires=[
                      "tensorflow==1.14",
+                     "numpy<1.17",
                      "tqdm",
                      "pdf2image",
                      "pytesseract",
