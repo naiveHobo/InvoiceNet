@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.python.ops.losses.losses_impl import Reduction
 
@@ -5,6 +6,11 @@ from invoicenet.common import util
 from invoicenet.common.model import Model
 from invoicenet.acp.data import *
 from invoicenet.parsing.parsers import DateParser, AmountParser, NoOpParser, OptionalParser
+
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
 class AttendCopyParse(Model):

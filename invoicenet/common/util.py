@@ -11,6 +11,10 @@ from tensorflow.python.client import device_lib
 import datefinder
 import datetime
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 
 def print_vars(vars):
     total = 0

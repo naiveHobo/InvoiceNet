@@ -13,6 +13,10 @@ import tensorflow as tf
 from PIL import Image
 from decimal import Decimal
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 random.seed(0)
 
 

@@ -5,6 +5,10 @@ import tensorflow as tf
 
 from invoicenet.acp.data import RealData
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 
 class Data:
     def sample_generator(self):
