@@ -2,10 +2,10 @@ import random
 from decimal import Decimal
 
 import tensorflow as tf
-
-from invoicenet.acp.data import RealData
-
 from tensorflow.python.util import deprecation
+
+from ..acp.data import RealData
+
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
@@ -102,17 +102,3 @@ class TabSeparated(ParseData):
             for s in random.sample(samples, len(samples)):
                 source, target = s.strip().split("\t")
                 yield self._encode_str(source, self.input_length), self._encode_str(target, self.output_length)
-
-
-if __name__ == '__main__':
-    print("Dates")
-    data = TabSeparated('data/date/train.tsv', RealData.seq_date)
-    g = data.sample_generator()
-    for i in range(10):
-        print(next(g))
-
-    print("Amounts")
-    data = TabSeparated('data/amount/train.tsv', RealData.seq_amount)
-    g = data.sample_generator()
-    for i in range(10):
-        print(next(g))

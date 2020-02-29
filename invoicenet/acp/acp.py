@@ -1,15 +1,19 @@
+import os
+import json
+
 import tensorflow as tf
+from tensorflow.python.util import deprecation
 from tensorflow.contrib import layers
 from tensorflow.python.ops.losses.losses_impl import Reduction
 
-from invoicenet.common import util
-from invoicenet.common.model import Model
-from invoicenet.acp.data import *
-from invoicenet.parsing.parsers import DateParser, AmountParser, NoOpParser, OptionalParser
+from .. import FIELD_TYPES, FIELDS
+from ..common import util
+from ..common.model import Model
+from .data import RealData
+from ..parsing.parsers import DateParser, AmountParser, NoOpParser, OptionalParser
 
-from tensorflow.python.util import deprecation
+
 deprecation._PRINT_DEPRECATION_WARNINGS = False
-
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
@@ -20,43 +24,39 @@ class AttendCopyParse(Model):
     lr = 3e-4
     keep_prob = 0.5
 
-    def __init__(self, data_dir, field, batch_size=8, restore=False):
-        self.data_dir = data_dir
+    def __init__(self, field, train_data=None, val_data=None, test_data=None, batch_size=8, restore=False):
         self.field = field
         self.batch_size = batch_size * len(self.devices)
 
-        self.noop_parser = NoOpParser()
-        self.opt_noop_parser = OptionalParser(self.noop_parser, self.batch_size, 128, 103, 1)
-        self.date_parser = DateParser(self.batch_size)
-        self.amount_parser = AmountParser(self.batch_size)
+        self.parser = None
 
-        self.field_parsers = {
-            "vendorname": self.noop_parser,
-            "invoicedate": self.date_parser,
-            "invoicenumber": self.noop_parser,
-            "amountnet": self.amount_parser,
-            "amounttax": self.amount_parser,
-            "amounttotal": self.amount_parser,
-            "vatrate": self.noop_parser,
-            "vatid": self.opt_noop_parser,
-            "taxid": self.opt_noop_parser,
-            "iban": self.opt_noop_parser,
-            "bic": self.opt_noop_parser
-        }
+        if FIELDS[self.field] == FIELD_TYPES["optional"]:
+            noop_parser = NoOpParser()
+            self.parser = OptionalParser(noop_parser, self.batch_size, 128, 103, 1)
+        elif FIELDS[self.field] == FIELD_TYPES["amount"]:
+            self.parser = AmountParser(self.batch_size)
+        elif FIELDS[self.field] == FIELD_TYPES["date"]:
+            self.parser = DateParser(self.batch_size)
+        else:
+            self.parser = NoOpParser()
 
         self.restore_all_path = './models/invoicenet/{}/best'.format(self.field) if restore else None
         os.makedirs("./models/invoicenet", exist_ok=True)
-        self.train = train = RealData(os.path.join(self.data_dir, 'train/'))
-        self.train_iterator = self.iterator(train)
-        self.next_train_batch = self.train_iterator.get_next()
 
-        valid = RealData(os.path.join(self.data_dir, "val/"))
-        self.valid_iterator = self.iterator(valid)
-        self.next_valid_batch = self.valid_iterator.get_next()
+        if train_data:
+            self.train = train_data
+            self.train_iterator = self.iterator(self.train)
+            self.next_train_batch = self.train_iterator.get_next()
 
-        self.test = test = RealData(os.path.join(self.data_dir, "predict/"))
-        self.test_iterator = self.iterator(test, n_repeat=1)
-        self.next_test_batch = self.test_iterator.get_next()
+        if val_data:
+            valid = val_data
+            self.valid_iterator = self.iterator(valid)
+            self.next_valid_batch = self.valid_iterator.get_next()
+
+        if test_data:
+            self.test = test_data
+            self.test_iterator = self.iterator(self.test, n_repeat=1)
+            self.next_test_batch = self.test_iterator.get_next()
 
         self.regularizer = layers.l2_regularizer(1e-4)
 
@@ -73,41 +73,12 @@ class AttendCopyParse(Model):
         self.char_indices_ph = tf.placeholder(tf.int32, name="char_indices")
         self.memory_mask_ph = tf.placeholder(tf.float32, name="memory_mask")
         self.parses_ph = tf.placeholder(tf.float32, name="parses")
-        self.found_ph = tf.placeholder(tf.float32, name="found")
-        # targets
-        self.vendorname_ph = tf.placeholder(tf.int32, name="vendorname")
-        self.invoicedate_ph = tf.placeholder(tf.int32, name="invoicedate")
-        self.invoicenumber_ph = tf.placeholder(tf.int32, name="invoicenumber")
-        self.amountnet_ph = tf.placeholder(tf.int32, name="amountnet")
-        self.amounttax_ph = tf.placeholder(tf.int32, name="amounttax")
-        self.amounttotal_ph = tf.placeholder(tf.int32, name="amounttotal")
-        self.vatrate_ph = tf.placeholder(tf.int32, name="vatrate")
-        self.vatid_ph = tf.placeholder(tf.int32, name="vatid")
-        self.taxid_ph = tf.placeholder(tf.int32, name="taxid")
-        self.iban_ph = tf.placeholder(tf.int32, name="iban")
-        self.bic_ph = tf.placeholder(tf.int32, name="bic")
+        self.target_ph = tf.placeholder(tf.int32, name="target")
 
-        self.targets = {
-            "vendorname": self.vendorname_ph,
-            "invoicedate": self.invoicedate_ph,
-            "invoicenumber": self.invoicenumber_ph,
-            "amountnet": self.amountnet_ph,
-            "amounttax": self.amounttax_ph,
-            "amounttotal": self.amounttotal_ph,
-            "vatrate": self.vatrate_ph,
-            "vatid": self.vatid_ph,
-            "taxid": self.taxid_ph,
-            "iban": self.iban_ph,
-            "bic": self.bic_ph
-        }
-
-        h, w = train.im_size
+        h, w = RealData.im_size
         bs = self.batch_size
-        seq_in = train.seq_in
-        n_out = train.n_output
-
-        field_idx = ["vendorname", "invoicedate", "invoicenumber", "amountnet", "amounttax", "amounttotal", "vatrate",
-                     "vatid", "taxid", "iban", "bic"].index(self.field)
+        seq_in = RealData.seq_in
+        n_out = RealData.n_output
 
         def dilated_block(x):
             return tf.concat(
@@ -120,6 +91,7 @@ class AttendCopyParse(Model):
             :param word_indices: (bs, h, w)
             :param pattern_indices: (bs, h, w)
             :param char_indices: (bs, h, w)
+            :param memory_mask: (bs, h, w, m, l, d)
             :param parses: (bs, h, w, 4, 2)
             """
             bs = tf.shape(pixels)[0]
@@ -129,15 +101,15 @@ class AttendCopyParse(Model):
             Y = tf.tile(Y[None, ..., None], (bs, 1, 1, 1))
 
             word_embeddings = tf.reshape(
-                layers.embed_sequence(tf.reshape(word_indices, (bs, -1)), vocab_size=train.word_hash_size,
+                layers.embed_sequence(tf.reshape(word_indices, (bs, -1)), vocab_size=RealData.word_hash_size,
                                       embed_dim=self.n_hid, unique=False, scope="word-embeddings"),
                 (bs, h, w, self.n_hid))
             pattern_embeddings = tf.reshape(
-                layers.embed_sequence(tf.reshape(pattern_indices, (bs, -1)), vocab_size=train.pattern_hash_size,
+                layers.embed_sequence(tf.reshape(pattern_indices, (bs, -1)), vocab_size=RealData.pattern_hash_size,
                                       embed_dim=self.n_hid, unique=False, scope="pattern-embeddings"),
                 (bs, h, w, self.n_hid))
             char_embeddings = tf.reshape(
-                layers.embed_sequence(tf.reshape(char_indices, (bs, -1)), vocab_size=train.n_output,
+                layers.embed_sequence(tf.reshape(char_indices, (bs, -1)), vocab_size=RealData.n_output,
                                       embed_dim=self.n_hid, unique=False, scope="char-embeddings"),
                 (bs, h, w, self.n_hid))
 
@@ -148,13 +120,12 @@ class AttendCopyParse(Model):
                           axis=3)
 
             with tf.variable_scope('attend'):
-                # x = tf.nn.relu(dilated_block(x))
                 for i in range(4):
                     x = tf.nn.relu(dilated_block(x))
 
                 x = layers.dropout(x, self.keep_prob, is_training=self.is_training_ph)
                 pre_att_logits = x
-                att_logits = layers.conv2d(x, train.n_memories, 3, activation_fn=None,
+                att_logits = layers.conv2d(x, RealData.n_memories, 3, activation_fn=None,
                                            weights_regularizer=self.regularizer)  # (bs, h, w, n_memories)
                 att_logits = memory_mask * att_logits - (
                         1.0 - memory_mask) * 1000  # TODO only sum the memory_mask idx, in the softmax
@@ -165,13 +136,13 @@ class AttendCopyParse(Model):
                 p = tf.nn.softmax(logits, axis=1)  # (bs, h * w * n_memories)
 
                 spatial_attention = tf.reshape(p,
-                                               (bs, h * w * train.n_memories, 1, 1))  # (bs, h * w * n_memories, 1, 1)
+                                               (bs, h * w * RealData.n_memories, 1, 1))  # (bs, h * w * n_memories, 1, 1)
 
                 p_uniform = memory_mask / tf.reduce_sum(memory_mask, axis=(1, 2, 3), keepdims=True)
-                cross_entropy_uniform = -tf.reduce_sum(p_uniform * tf.reshape(lp, (bs, h, w, train.n_memories)),
+                cross_entropy_uniform = -tf.reduce_sum(p_uniform * tf.reshape(lp, (bs, h, w, RealData.n_memories)),
                                                        axis=(1, 2, 3))  # (bs, 1)
 
-                cp = tf.reduce_sum(tf.reshape(p, (bs, h, w, train.n_memories)), axis=3, keepdims=True)
+                cp = tf.reduce_sum(tf.reshape(p, (bs, h, w, RealData.n_memories)), axis=3, keepdims=True)
 
                 context = tf.reduce_sum(cp * pre_att_logits, axis=(1, 2))  # (bs, 4*n_hidden)
 
@@ -194,15 +165,13 @@ class AttendCopyParse(Model):
 
         with tf.variable_scope('copy'):
             memories = tf.sparse_reshape(self.memories_ph,
-                                         (self.batch_size, h * w * train.n_memories, train.seq_in, n_out))
+                                         (self.batch_size, h * w * RealData.n_memories, RealData.seq_in, n_out))
             x = tf.reshape(tf.sparse_reduce_sum(spatial_attention * memories, axis=1),
                            (bs, seq_in, n_out))  # (bs, seq_in, n_out)
 
         with tf.name_scope('parse'):
-            parser = self.field_parsers[self.field]
-            parsed = parser.parse(x, context, self.is_training_ph)
-            target = self.targets[self.field]
-            output = self.output(parsed, targets=target, scope=self.field)
+            parsed = self.parser.parse(x, context, self.is_training_ph)
+            output = self.output(parsed, targets=self.target_ph, scope=self.field)
             self.outputs = {self.field: output}
 
         reg_loss = tf.losses.get_regularization_loss()
@@ -224,10 +193,12 @@ class AttendCopyParse(Model):
         self.session.run(tf.global_variables_initializer())
 
         if self.restore_all_path:
+            if not os.path.exists('./models/invoicenet/{}'.format(self.field)):
+                raise Exception("No trained model available for the field '{}'".format(self.field))
             print("Restoring all " + self.restore_all_path + "...")
             self.saver.restore(self.session, self.restore_all_path)
         else:
-            restore = parser.restore()
+            restore = self.parser.restore()
             if restore is not None:
                 scope, fname = restore
                 vars = tf.trainable_variables(scope=scope)
@@ -236,8 +207,6 @@ class AttendCopyParse(Model):
                 for var in vars:
                     print("-- restoring %s" % var)
                 saver.restore(self.session, fname)
-
-        self.found = tf.reduce_mean(self.found_ph[:, field_idx])
 
     def output(self, logits, targets, scope, optional=None):
         with tf.variable_scope(scope):
@@ -249,7 +218,7 @@ class AttendCopyParse(Model):
                                                       initializer=tf.initializers.constant(0.0))) * empty_answer
                 logits = output_p * logits + (1 - output_p) * empty_logits
 
-            mask = tf.logical_not(tf.equal(targets, self.train.pad_idx))  # (bs, seq)
+            mask = tf.logical_not(tf.equal(targets, RealData.pad_idx))  # (bs, seq)
             label_cross_entropy = tf.reduce_sum(
                 tf.losses.sparse_softmax_cross_entropy(targets, logits, reduction=Reduction.NONE) * tf.to_float(mask),
                 axis=1) / tf.reduce_sum(tf.to_float(mask), axis=1)
@@ -292,14 +261,15 @@ class AttendCopyParse(Model):
                 batch = self.session.run(self.next_test_batch)
                 placeholders = self.get_placeholders(batch, False)
                 output = self.session.run(self.outputs, placeholders)
-                actuals.extend(self.train.array_to_str(output[self.field]['actual']))
+                actuals.extend(self.test.array_to_str(output[self.field]['actual']))
             except tf.errors.OutOfRangeError:
                 break
-
         os.makedirs(out_path, exist_ok=True)
         extracts = {}
         for actual, filename in zip(actuals, self.test.filenames):
+            filename = '.'.join([os.path.basename(filename).split('.')[0], 'pdf'])
             print("Prediciton: {}\t\tFilename: {}".format(actual, filename))
+            filename = filename[:-3] + 'json'
             predictions = {}
             if os.path.exists(os.path.join(out_path, filename)):
                 with open(os.path.join(out_path, filename), 'r') as fp:
@@ -318,7 +288,7 @@ class AttendCopyParse(Model):
         self.saver.restore(self.session, name)
 
     def get_placeholders(self, batch, is_training):
-        memories, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, vendorname, invoicedate, invoicenumber, amountnet, amounttax, amounttotal, vatrate, vatid, taxid, iban, bic, found = batch
+        memories, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target = batch
         return {
             self.is_training_ph: is_training,
             self.memories_ph: memories,
@@ -328,16 +298,5 @@ class AttendCopyParse(Model):
             self.char_indices_ph: char_indices,
             self.memory_mask_ph: memory_mask,
             self.parses_ph: parses,
-            self.vendorname_ph: vendorname,
-            self.invoicedate_ph: invoicedate,
-            self.invoicenumber_ph: invoicenumber,
-            self.amountnet_ph: amountnet,
-            self.amounttax_ph: amounttax,
-            self.amounttotal_ph: amounttotal,
-            self.vatrate_ph: vatrate,
-            self.vatid_ph: vatid,
-            self.taxid_ph: taxid,
-            self.iban_ph: iban,
-            self.bic_ph: bic,
-            self.found_ph: found
+            self.target_ph: target
         }

@@ -6,8 +6,10 @@ from tqdm import tqdm
 from tkinter import filedialog, messagebox
 from tkinter.ttk import Progressbar
 
+from invoicenet import FIELDS
 from invoicenet.common import util
 from invoicenet.acp.acp import AttendCopyParse
+from invoicenet.acp.data import RealData
 from invoicenet.common.custom_widgets import *
 
 
@@ -21,19 +23,6 @@ class Extractor(Frame):
             "data_file": "",
             "pred_dir": "predictions",
             "prepared_data": "processed_data",
-        }
-        self.fields = {
-            "vendorname": True,
-            "vatrate": True,
-            "invoicenumber": True,
-            "taxid": True,
-            "amounttax": True,
-            "bic": True,
-            "invoicedate": True,
-            "vatid": True,
-            "amountnet": True,
-            "iban": True,
-            "amounttotal": True
         }
         self.textboxes = {}
         self.checkboxes = {}
@@ -176,9 +165,9 @@ class Extractor(Frame):
         checkbox_frame.columnconfigure(1, weight=1)
         checkbox_frame.columnconfigure(2, weight=1)
         checkbox_frame.columnconfigure(3, weight=1)
-        for i in range(len(self.fields) // 2):
+        for i in range(len(FIELDS) // 2):
             checkbox_frame.rowconfigure(i, weight=1)
-        for idx, key in enumerate(self.fields):
+        for idx, key in enumerate(FIELDS):
             self.checkboxes[key] = BooleanVar(checkbox_frame, value=False)
             state = False
             if os.path.exists('./models/invoicenet/'):
@@ -186,9 +175,9 @@ class Extractor(Frame):
 
             Checkbutton(checkbox_frame, fg="black", bg='#353535',
                         activebackground=self.background, variable=self.checkboxes[key], anchor='w',
-                        state="normal" if self.fields[key] and state else "disabled").grid(row=idx // 2,
-                                                                                           column=2 if idx % 2 else 0,
-                                                                                           sticky='news', padx=(10, 0))
+                        state="normal" if state else "disabled", highlightthickness=0).grid(row=idx // 2,
+                                                                                            column=2 if idx % 2 else 0,
+                                                                                            sticky='news', padx=(10, 0))
             Label(checkbox_frame, text=key, bg='#353535',
                   anchor='w', fg="white", font="Arial 8").grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='news')
 
@@ -231,10 +220,10 @@ class Extractor(Frame):
         self.logger.log("Extracting information from invoices...\n")
 
         predictions = {}
-        for key in self.fields:
+        for key in FIELDS:
             if self.checkboxes[key].get():
-                model = AttendCopyParse(data_dir=self.args["prepared_data"], field=key,
-                                        batch_size=1, restore=True)
+                test_data = RealData(field=key, data_dir=os.path.join(self.args["prepared_data"], 'predict/'))
+                model = AttendCopyParse(field=key, test_data=test_data, batch_size=1, restore=True)
                 preds = model.test_set(out_path=self.args["pred_dir"])
                 for file in preds.keys():
                     if file in predictions:
@@ -243,7 +232,7 @@ class Extractor(Frame):
                         predictions[file] = preds[file]
 
         for file in predictions:
-            self.logger.log("Invoice: {}".format(file))
+            self.logger.log("Invoice: {}".format('.'.join([file.split('.')[0], 'pdf'])))
             for key in predictions[file]:
                 self.logger.log("  - {}: {}".format(key, predictions[file][key]))
             self.logger.log(" ")
@@ -278,7 +267,7 @@ class Extractor(Frame):
             return
 
         selected = False
-        for key in self.fields:
+        for key in FIELDS:
             if self.checkboxes[key].get():
                 selected = True
                 break
@@ -350,17 +339,7 @@ class Extractor(Frame):
                     if "date" in ngram["parses"]:
                         ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-                fields = {"vendorname": '0',
-                          "invoicedate": '0',
-                          "invoicenumber": '0',
-                          "amountnet": '0',
-                          "amounttax": '0',
-                          "amounttotal": '0',
-                          "vatrate": '0',
-                          "vatid": '0',
-                          "taxid": '0',
-                          "iban": '0',
-                          "bic": '0'}
+                fields = {field: '0' for field in FIELDS}
 
                 data = {
                     "fields": fields,

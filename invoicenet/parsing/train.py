@@ -1,6 +1,7 @@
 import argparse
-from invoicenet.common import trainer
-from invoicenet.parsing.parser import Parser
+
+from ..common import trainer
+from .parser import Parser
 
 
 def main():

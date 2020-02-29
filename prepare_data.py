@@ -5,21 +5,8 @@ import pdf2image
 import simplejson
 from tqdm import tqdm
 
+from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
-
-FIELDS = [
-    "vendorname",
-    "invoicedate",
-    "invoicenumber",
-    "amountnet",
-    "amounttax",
-    "amounttotal",
-    "vatrate",
-    "vatid",
-    "taxid",
-    "iban",
-    "bic"
-]
 
 
 def main():
@@ -55,17 +42,7 @@ def main():
                     if "date" in ngram["parses"]:
                         ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-                fields = {"vendorname": '0',
-                          "invoicedate": '0',
-                          "invoicenumber": '0',
-                          "amountnet": '0',
-                          "amounttax": '0',
-                          "amounttotal": '0',
-                          "vatrate": '0',
-                          "vatid": '0',
-                          "taxid": '0',
-                          "iban": '0',
-                          "bic": '0'}
+                fields = {field: '0' for field in FIELDS}
 
                 data = {
                     "fields": fields,
@@ -119,16 +96,16 @@ def main():
                     labels = simplejson.loads(fp.read())
 
                 fields = {}
-                amount_fields = ["amountnet", "amounttax", "amounttotal"]
-                date_fields = ["invoicedate"]
-
-                for field in labels:
-                    if field in amount_fields:
-                        fields[field] = util.normalize(labels[field], key="amount")
-                    elif field in date_fields:
-                        fields[field] = util.normalize(labels[field], key="date")
-                    elif field in FIELDS:
-                        fields[field] = labels[field]
+                for field in FIELDS:
+                    if field in labels:
+                        if FIELDS[field] == FIELD_TYPES["amount"]:
+                            fields[field] = util.normalize(labels[field], key="amount")
+                        elif FIELDS[field] == FIELD_TYPES["date"]:
+                            fields[field] = util.normalize(labels[field], key="date")
+                        else:
+                            fields[field] = labels[field]
+                    else:
+                        fields[field] = ''
 
                 data = {
                     "fields": fields,

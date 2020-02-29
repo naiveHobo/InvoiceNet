@@ -1,17 +1,18 @@
-import os
 import glob
 import hashlib
 import json
-import logging
 import random
 import string
 import time
+import logging
 
 import numpy as np
 import re
 import tensorflow as tf
 from PIL import Image
 from decimal import Decimal
+
+from .. import FIELDS, FIELD_TYPES
 
 from tensorflow.python.util import deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -58,40 +59,39 @@ class UnkDict:
 
 
 class RealData(Data):
-    im_size = 128, 128  # height, width TODO consider respecting aspect ratio
-    chars = ['<PAD>', '<EOS>', '<UNK>'] + list(string.printable)  # TODO proper multi-lingual char set/bpe encoding
+
+    im_size = 128, 128
+    chars = ['<PAD>', '<EOS>', '<UNK>'] + list(string.printable)
+    output_dict = UnkDict(chars)
+    n_output = len(output_dict)
     pad_idx = 0
     eos_idx = 1
     unk_idx = 2
     word_hash_size = 2 ** 16
     pattern_hash_size = 2 ** 14
     seq_in = 4 * 32
-    seq_long = 128
     seq_amount = 16
     seq_date = 11
+    seq_long = 128
+
+    seq_out = {
+        FIELD_TYPES["general"]: seq_long,
+        FIELD_TYPES["optional"]: seq_long,
+        FIELD_TYPES["amount"]: seq_amount,
+        FIELD_TYPES["date"]: seq_date
+    }
 
     n_memories = 4
     parses_idx = {'date': 0, 'amount': 1}
-    fields = [
-        "vendorname",
-        "invoicedate",
-        "invoicenumber",
-        "amountnet",
-        "amounttax",
-        "amounttotal",
-        "vatrate",
-        "vatid",
-        "taxid",
-        "iban",
-        "bic"
-    ]
 
-    def __init__(self, data_dir):
+    def __init__(self, field, data_dir=None, data_file=None):
         self.logger = logging.getLogger("data")
-        self.data_dir = data_dir
-        self.output_dict = UnkDict(self.chars)
-        self.n_output = len(self.output_dict)
-        self.filenames = [os.path.basename(f) for f in glob.glob(self.data_dir + "**/*.json", recursive=True)]
+        self.field = field
+        self.filenames = []
+        self.data_file = data_file
+        self.filenames = [data_file['page']['filename']] if data_file else []
+        if data_dir:
+            self.filenames = glob.glob(data_dir + "**/*.json", recursive=True)
 
     def shapes_types(self):
         return zip(*(
@@ -104,18 +104,7 @@ class RealData(Data):
             (self.im_size, tf.int32),  # char_indices
             (self.im_size, tf.float32),  # memory_mask
             (self.im_size + (4, 2), tf.float32),  # parses
-            ((self.seq_long,), tf.int32),  # vendorname
-            ((self.seq_date,), tf.int32),  # invoicedate
-            ((self.seq_long,), tf.int32),  # invoicenumber
-            ((self.seq_amount,), tf.int32),  # amountnet
-            ((self.seq_amount,), tf.int32),  # amounttax
-            ((self.seq_amount,), tf.int32),  # amounttotal
-            ((self.seq_long,), tf.int32),  # vatrate
-            ((self.seq_long,), tf.int32),  # vatid
-            ((self.seq_long,), tf.int32),  # taxid
-            ((self.seq_long,), tf.int32),  # iban
-            ((self.seq_long,), tf.int32),  # bic
-            ((11,), tf.float32)  # found
+            ((self.seq_out[FIELDS[self.field]],), tf.int32)  # target
         ))
 
     def _encode_ngrams(self, n_grams, height, width):
@@ -199,51 +188,46 @@ class RealData(Data):
         pixels = (np.asarray(im, np.float32) / 255. - 0.5) * 2.
         return pixels
 
-    def _load_document(self, doc_id):
-        if not doc_id.endswith('.json'):
-            doc_id += ".json"
+    @staticmethod
+    def _preprocess_amount(value):
+        return '{:f}'.format(Decimal(value).normalize())
 
-        with open(self.data_dir + doc_id, encoding="utf8") as fp:
+    def _load_document(self, doc_id):
+        with open(doc_id, encoding="utf8") as fp:
             page = json.load(fp)
 
         pixels = self.encode_image(page)
         n_grams = page['nGrams']
 
-        def preprocess_amount(value):
-            return '{:f}'.format(Decimal(value).normalize())
+        word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams,
+                                                                                                        page['height'],
+                                                                                                        page['width'])
 
-        strings_in_doc = {""}
-        for n in n_grams:
-            s = " ".join([w["text"] for w in n["words"]])
-            strings_in_doc.add(s)
-            for k, p in n["parses"].items():
-                strings_in_doc.add(p)
-                if k == "amount":
-                    strings_in_doc.add(preprocess_amount(p))
+        target = page['fields'][self.field]
+        if FIELDS[self.field] == FIELD_TYPES["amount"]:
+            target = self._preprocess_amount(target)
+        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
+
+        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
+
+    def _load_single_document(self):
+        pixels = self.data_file['image']
+        pixels = pixels.convert('RGB').resize(self.im_size[::-1], Image.ANTIALIAS)
+        pixels = (np.asarray(pixels, np.float32) / 255. - 0.5) * 2.
+
+        page = self.data_file['page']
+        n_grams = page['nGrams']
 
         word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams,
                                                                                                         page['height'],
                                                                                                         page['width'])
 
-        fields = page['fields']
-        amount_fields = {"amountnet", "amounttax", "amounttotal"}
-        fields = {k: (preprocess_amount(v) if k in amount_fields else v) for k, v in fields.items()}
+        target = page['fields'][self.field]
+        if FIELDS[self.field] == FIELD_TYPES["amount"]:
+            target = self._preprocess_amount(target)
+        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
 
-        found = [1.0 if fields[f] in strings_in_doc else 0.0 for f in self.fields]
-
-        vendorname = self._encode_sequence(fields['vendorname'], self.seq_long)
-        invoicedate = self._encode_sequence(fields['invoicedate'], self.seq_date)
-        invoicenumber = self._encode_sequence(fields['invoicenumber'], self.seq_long)
-        amountnet = self._encode_sequence(fields['amountnet'], self.seq_amount)
-        amounttax = self._encode_sequence(fields['amounttax'], self.seq_amount)
-        amounttotal = self._encode_sequence(fields['amounttotal'], self.seq_amount)
-        vatrate = self._encode_sequence(fields['vatrate'], self.seq_long)
-        vatid = self._encode_sequence(fields['vatid'], self.seq_long)
-        taxid = self._encode_sequence(fields['taxid'], self.seq_long)
-        iban = self._encode_sequence(fields['iban'], self.seq_long)
-        bic = self._encode_sequence(fields['bic'], self.seq_long)
-
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, vendorname, invoicedate, invoicenumber, amountnet, amounttax, amounttotal, vatrate, vatid, taxid, iban, bic, found
+        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
 
     def array_to_str(self, arr):
         """
@@ -261,6 +245,11 @@ class RealData(Data):
         return strs
 
     def sample_generator(self):
+        if self.data_file:
+            doc = self._load_single_document()
+            yield doc
+            return
+
         exceptions = 0
         np.random.seed(0)
         random.shuffle(self.filenames)
@@ -281,5 +270,4 @@ class RealData(Data):
     def _encode_sequence(self, value, max_len):
         encoded = [self.output_dict[c] for c in list(value)[:max_len - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_len - len(encoded))
-
         return encoded

@@ -14,6 +14,7 @@ import tempfile
 
 minimum_cuda_version = 6050
 
+
 def find_in_path(filename, paths):
     for p in paths:
         fp = os.path.join(p, filename)
@@ -22,8 +23,10 @@ def find_in_path(filename, paths):
 
     return os.path.join('usr', 'bin', filename)
 
+
 class InspectCudaException(Exception):
     pass
+
 
 def nvcc_compiler_settings():
     """ Find nvcc and the CUDA installation """
@@ -39,14 +42,14 @@ def nvcc_compiler_settings():
     # Can't find either NVCC or some CUDA_PATH
     if not nvcc_found and not cuda_path_found:
         raise InspectCudaException("Neither nvcc '{}' "
-            "or the CUDA_PATH '{}' were found!".format(
-                nvcc_path, cuda_path))
+                                   "or the CUDA_PATH '{}' were found!".format(
+            nvcc_path, cuda_path))
 
     # No NVCC, try find it in the CUDA_PATH
     if not nvcc_found:
         print("nvcc compiler not found at '{}'. "
-            "Searching within the CUDA_PATH '{}'"
-                .format(nvcc_path, cuda_path))
+              "Searching within the CUDA_PATH '{}'"
+              .format(nvcc_path, cuda_path))
 
         bin_dir = os.path.join(cuda_path, 'bin')
         nvcc_path = find_in_path('nvcc', bin_dir)
@@ -54,8 +57,8 @@ def nvcc_compiler_settings():
 
         if not nvcc_found:
             raise InspectCudaException("nvcc not found in '{}' "
-                "or under the CUDA_PATH at '{}' "
-                .format(search_paths, cuda_path))
+                                       "or under the CUDA_PATH at '{}' "
+                                       .format(search_paths, cuda_path))
 
     # No CUDA_PATH found, infer it from NVCC
     if not cuda_path_found:
@@ -63,8 +66,8 @@ def nvcc_compiler_settings():
             os.path.join(os.path.dirname(nvcc_path), ".."))
 
         print("CUDA_PATH not found, inferring it as '{}' "
-            "from the nvcc location '{}'".format(
-                cuda_path, nvcc_path))
+              "from the nvcc location '{}'".format(
+            cuda_path, nvcc_path))
 
         cuda_path_found = True
 
@@ -85,14 +88,15 @@ def nvcc_compiler_settings():
         library_dirs.append(os.path.join(default_cuda_path, 'lib'))
 
     return {
-        'cuda_available' : True,
-        'nvcc_path' : nvcc_path,
+        'cuda_available': True,
+        'nvcc_path': nvcc_path,
         'include_dirs': include_dirs,
         'library_dirs': library_dirs,
         'define_macros': define_macros,
-        'libraries' : ['cudart', 'cuda'],
+        'libraries': ['cudart', 'cuda'],
         'language': 'c++',
     }
+
 
 def inspect_cuda_version_and_devices(compiler, settings):
     """
@@ -131,17 +135,18 @@ def inspect_cuda_version_and_devices(compiler, settings):
               return 0;
             }
         ''',
-        filename='test.cu',
-        include_dirs=settings['include_dirs'],
-        library_dirs=settings['library_dirs'],
-        libraries=settings['libraries'])
+                               filename='test.cu',
+                               include_dirs=settings['include_dirs'],
+                               library_dirs=settings['library_dirs'],
+                               libraries=settings['libraries'])
 
     except Exception as e:
         msg = ("Running the CUDA device check "
-            "stub failed\n{}".format(str(e)))
+               "stub failed\n{}".format(str(e)))
         raise InspectCudaException(msg)
 
     return output
+
 
 def build_and_run(compiler, source, filename, libraries=(),
                   include_dirs=(), library_dirs=()):
@@ -165,7 +170,7 @@ def build_and_run(compiler, source, filename, libraries=(),
                                      target_lang='c++')
         except Exception as e:
             msg = ('Cannot build a stub file.\n'
-                'Original error: {0}'.format(e))
+                   'Original error: {0}'.format(e))
             raise InspectCudaException(msg)
 
         try:
@@ -174,11 +179,12 @@ def build_and_run(compiler, source, filename, libraries=(),
 
         except Exception as e:
             msg = ('Cannot execute a stub file.\n'
-                'Original error: {0}'.format(e))
+                   'Original error: {0}'.format(e))
             raise InspectCudaException(msg)
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 def customize_compiler_for_nvcc(compiler, nvcc_settings):
     """inject deep into distutils to customize gcc/nvcc dispatch """
@@ -219,7 +225,6 @@ def inspect_cuda():
     return json.loads(output), nvcc_settings
 
 
-
 tensorflow_package = 'tensorflow==1.14'
 try:
     # Look for CUDA devices and NVCC/CUDA installation
@@ -228,16 +233,15 @@ try:
 
     cuda_version = device_info['cuda_version']
     print("CUDA '{}' found. "
-        "Installing tensorflow GPU".format(cuda_version))
+          "Installing tensorflow GPU".format(cuda_version))
 
 except InspectCudaException as e:
     # Can't find a reasonable NVCC/CUDA install. Go with the CPU version
     print("CUDA not found: {}. ".format(str(e)))
     print("Installing tensorflow CPU")
 
-    device_info, nvcc_settings = {}, { 'cuda_available' : False }
+    device_info, nvcc_settings = {}, {'cuda_available': False}
     tensorflow_package = 'tensorflow==1.14'
-
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -245,7 +249,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(name='InvoiceNet',
                  version='0.1',
                  description='A deep neural network to extract intelligent information from invoice documents',
-                 url='https://github.com/naiveHobo/invoiceNet--gbr',
+                 url='https://github.com/naiveHobo/invoicenet-gbr',
                  author='naiveHobo',
                  author_email='sarthakmittal2608@gmail.com',
                  license='MIT',

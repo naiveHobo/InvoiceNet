@@ -2,14 +2,13 @@ from invoicenet.common import util
 
 from datetime import datetime
 
-import tensorflow as tf
 from tensorflow.python.ops.losses.losses_impl import Reduction
 
-from invoicenet.common.model import Model
-from invoicenet.parsing.parsers import *
-from invoicenet.parsing.data import *
+from ..common.model import Model
+from .parsers import *
+from .data import *
 
-from tensorflow.python.util import deprecation
+
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 

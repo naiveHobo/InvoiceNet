@@ -9,8 +9,10 @@ from tqdm import tqdm
 from tkinter import filedialog, messagebox
 from tkinter.ttk import Progressbar
 
+from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
 from invoicenet.acp.acp import AttendCopyParse
+from invoicenet.acp.data import RealData
 from invoicenet.common.custom_widgets import *
 
 
@@ -22,21 +24,8 @@ class Trainer(Frame):
         self.args = {
             "data_dir": "",
             "prepared_data": "processed_data",
-            "field": "invoicenumber",
+            "field": list(FIELDS.keys())[0],
             "batch_size": 4
-        }
-        self.fields = {
-            "vendorname": True,
-            "invoicedate": True,
-            "invoicenumber": True,
-            "amountnet": True,
-            "amounttax": True,
-            "amounttotal": True,
-            "vatrate": True,
-            "vatid": True,
-            "taxid": True,
-            "iban": True,
-            "bic": True
         }
         self.textboxes = {}
         self.thread = None
@@ -131,13 +120,13 @@ class Trainer(Frame):
         self.field_text = StringVar(field_param)
         self.field_text.set("invoicenumber")
 
-        keys = list(self.fields.keys())
+        keys = list(FIELDS.keys())
         field_list = OptionMenu(field_param, self.field_text, *keys)
         field_list.configure(highlightthickness=0, width=20, bg='#ffffff')
         field_list.pack(side=BOTTOM)
 
         for key in keys:
-            field_list['menu'].entryconfigure(key, state="normal" if self.fields[key] else "disabled")
+            field_list['menu'].entryconfigure(key, state="normal")
 
         Label(batch_param, text="Batch Size:", bg=self.background,
               anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=BOTH)
@@ -188,7 +177,10 @@ class Trainer(Frame):
         self.logger.grid(row=1, column=0, sticky='news')
 
     def _train(self):
-        model = AttendCopyParse(data_dir=self.args["prepared_data"], field=self.args["field"],
+        train_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'train/'))
+        val_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'val/'))
+
+        model = AttendCopyParse(field=self.args["field"], train_data=train_data, val_data=val_data,
                                 batch_size=self.args["batch_size"], restore=False)
 
         n_updates = 50000
@@ -318,16 +310,16 @@ class Trainer(Frame):
                     labels = simplejson.loads(fp.read())
 
                 fields = {}
-                amount_fields = ["amountnet", "amounttax", "amounttotal"]
-                date_fields = ["invoicedate"]
-
-                for field in labels:
-                    if field in amount_fields:
-                        fields[field] = util.normalize(labels[field], key="amount")
-                    elif field in date_fields:
-                        fields[field] = util.normalize(labels[field], key="date")
-                    elif field in self.fields:
-                        fields[field] = labels[field]
+                for field in FIELDS:
+                    if field in labels:
+                        if FIELDS[field] == FIELD_TYPES["amount"]:
+                            fields[field] = util.normalize(labels[field], key="amount")
+                        elif FIELDS[field] == FIELD_TYPES["date"]:
+                            fields[field] = util.normalize(labels[field], key="date")
+                        else:
+                            fields[field] = labels[field]
+                    else:
+                        fields[field] = ''
 
                 data = {
                     "fields": fields,

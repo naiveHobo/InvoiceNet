@@ -1,12 +1,16 @@
+import os
 import argparse
+
+from invoicenet import FIELDS
 from invoicenet.common import trainer
 from invoicenet.acp.acp import AttendCopyParse
+from invoicenet.acp.data import RealData
 
 
 def main():
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--field", type=str,  choices=["vendorname", "invoicedate", "invoicenumber", "amountnet", "amounttax", "amounttotal", "vatrate", "vatid", "taxid", "iban", "bic"],
+    ap.add_argument("--field", type=str,  choices=FIELDS.keys(),
                     help="field to train parser for")
     ap.add_argument("--batch_size", type=int, default=8,
                     help="batch size for training")
@@ -17,9 +21,12 @@ def main():
 
     args = ap.parse_args()
 
+    train_data = RealData(field=args.field, data_dir=os.path.join(args.data_dir, 'train/'))
+    val_data = RealData(field=args.field, data_dir=os.path.join(args.data_dir, 'val/'))
+
     print("Training...")
     trainer.train(AttendCopyParse(field=args.field, batch_size=args.batch_size, restore=args.restore,
-                                  data_dir=args.data_dir))
+                                  train_data=train_data, val_data=val_data))
 
 
 if __name__ == '__main__':
