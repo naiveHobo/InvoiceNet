@@ -1,16 +1,20 @@
 # InvoiceNet
 Deep neural network to extract intelligent information from PDF invoice documents.
 
+Trainer             |  Extractor
+:-------------------------:|:-------------------------:
+![Trainer](_images/trainer.png)  |  ![](_images/extractor.png)
+
 ## Installation
-To install InvoiceNet, run the following commands (CentOS 7):
+To install InvoiceNet, run the following commands:
 ```
-git clone https://github.com/naiveHobo/invoicenet-gbr.git
-cd invoicenet-gbr/
+git clone https://github.com/naiveHobo/InvoiceNet.git
+cd InvoiceNet/
 
 # Run installation script
 ./install.sh
 ```
-The install.sh script will install all the dependencies, create a virtual enviroment, and install InvoiceNet in the virtual environment.
+The install.sh script will install all the dependencies, create a virtual environment, and install InvoiceNet in the virtual environment.
 
 To be able to use InvoiceNet, you need to source the virtual environment that the package was installed in.
 ```
@@ -150,3 +154,19 @@ python predict.py --field enter-field-here
 python predict.py --field amounttotal
 ```
 ---
+
+## Reference
+This implementation is largely based on the work of R. Palm et al, who should be cited if this is used in a scientific publication (or the preceding conference papers):
+
+[1] Palm, Rasmus Berg, Florian Laws, and Ole Winther. "Attend, Copy, Parse End-to-end information extraction from documents." 2019 International Conference on Document Analysis and Recognition (ICDAR). IEEE, 2019.
+
+```
+@inproceedings{palm2019attend,
+  title={Attend, Copy, Parse End-to-end information extraction from documents},
+  author={Palm, Rasmus Berg and Laws, Florian and Winther, Ole},
+  booktitle={2019 International Conference on Document Analysis and Recognition (ICDAR)},
+  pages={329--336},
+  year={2019},
+  organization={IEEE}
+}
+```

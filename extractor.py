@@ -17,7 +17,9 @@ class Extractor(Frame):
 
     def __init__(self, master=None, **kw):
         Frame.__init__(self, master, **kw)
-        self.background = '#303030'
+        self.background = '#3c3f41'
+        self.border_color = '#303030'
+        self.checkbox_color = '#393c3d'
         self.args = {
             "data_dir": "",
             "data_file": "",
@@ -38,6 +40,8 @@ class Extractor(Frame):
         x = (ws / 2) - (w / 2)
         y = (hs / 2) - (h / 2)
         self.master.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.master.maxsize(w, h)
+        self.master.minsize(w, h)
         self.master.title("InvoiceNet - Extractor")
 
         self.pack(fill=BOTH, expand=True)
@@ -50,21 +54,30 @@ class Extractor(Frame):
 
         self.configure(bg=self.background, bd=0)
 
-        title_frame = Frame(self, height=100, bg=self.background, bd=1, relief=SUNKEN)
-        param_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
-        progress_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
-        main_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
+        logo_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                           highlightbackground=self.border_color, highlightthickness=1)
+        param_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=1)
+        progress_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=1)
+        main_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                           highlightbackground=self.border_color, highlightthickness=1)
 
-        title_frame.grid(row=0, column=0, sticky='news')
+        logo_frame.grid(row=0, column=0, sticky='news')
         param_frame.grid(row=1, column=0, sticky='news')
         progress_frame.grid(row=2, column=0, sticky='news', padx=50, pady=(0, 20))
         main_frame.grid(row=3, column=0, sticky='news')
 
-        # Title Frame
-        title_frame.columnconfigure(0, weight=1)
-        title_frame.rowconfigure(0, weight=1)
-        title_label = Label(title_frame, text="Extractor", bg=self.background, fg="white", font="Arial 24")
-        title_label.grid(row=0, column=0, sticky='nws', padx=10, pady=5)
+        # Logo Frame
+        logo_frame.columnconfigure(0, weight=1)
+        logo_frame.columnconfigure(1, weight=1)
+        logo_frame.columnconfigure(2, weight=2)
+        logo_frame.rowconfigure(0, weight=1)
+
+        self.logo_img = ImageTk.PhotoImage(Image.open(r'widgets/logo.png'))
+        Label(logo_frame, bg=self.background, image=self.logo_img, anchor='w').grid(row=0, column=0, sticky='news')
+        Label(logo_frame, text="InvoiceNet - Extractor", bg=self.background,
+              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=1, sticky='news', padx=50)
 
         # Param Frame
         param_frame.columnconfigure(0, weight=1)
@@ -79,11 +92,16 @@ class Extractor(Frame):
         param_frame.rowconfigure(5, weight=0)
         param_frame.rowconfigure(6, weight=1)
 
-        data_file_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        data_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        prepare_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        pred_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        field_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
+        data_file_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                                highlightbackground=self.border_color, highlightthickness=0)
+        data_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=0)
+        prepare_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                                  highlightbackground=self.border_color, highlightthickness=0)
+        pred_dir_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=0)
+        field_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=0)
 
         data_file_param.grid(row=1, column=1, pady=10, padx=20)
         data_dir_param.grid(row=2, column=1, pady=10, padx=20)
@@ -92,11 +110,12 @@ class Extractor(Frame):
         field_param.grid(row=1, column=2, rowspan=4, pady=10, padx=10, sticky='news')
 
         # Invoice File
-        data_file_frame = Frame(data_file_param, bg=self.background, bd=0, relief=SUNKEN)
+        data_file_frame = Frame(data_file_param, bg=self.background, bd=0, relief=SUNKEN,
+                                highlightbackground=self.border_color, highlightthickness=0)
         data_file_frame.pack(side=TOP, fill=BOTH)
 
         Label(data_file_frame, text="Invoice File:", bg=self.background,
-              fg="white", font="Arial 8", anchor='w').pack(side=LEFT, fill=BOTH)
+              fg="white", font=("Arial", 8, "bold"), anchor='w').pack(side=LEFT, fill=BOTH)
         HoverButton(data_file_frame, image_path=r'widgets/open_file.png',
                     command=lambda: self._open("data_file"),
                     width=18, height=18, bg=self.background, bd=0,
@@ -107,11 +126,12 @@ class Extractor(Frame):
         self.textboxes["data_file"].pack(side=BOTTOM)
 
         # Invoice Directory
-        data_dir_frame = Frame(data_dir_param, bg=self.background, bd=0, relief=SUNKEN)
+        data_dir_frame = Frame(data_dir_param, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=0)
         data_dir_frame.pack(side=TOP, fill=BOTH)
 
         Label(data_dir_frame, text="Invoice Folder:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=LEFT, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=LEFT, fill=BOTH)
         HoverButton(data_dir_frame, image_path=r'widgets/open_dir.png',
                     command=lambda: self._open("data_dir"),
                     width=18, height=18, bg=self.background, bd=0,
@@ -122,11 +142,12 @@ class Extractor(Frame):
         self.textboxes["data_dir"].pack(side=BOTTOM)
 
         # Prepared Data Directory
-        prepare_dir_frame = Frame(prepare_dir_param, bg=self.background, bd=0, relief=SUNKEN)
+        prepare_dir_frame = Frame(prepare_dir_param, bg=self.background, bd=0, relief=SUNKEN,
+                                  highlightbackground=self.border_color, highlightthickness=0)
         prepare_dir_frame.pack(side=TOP, fill=BOTH)
 
         Label(prepare_dir_frame, text="Processed Data Folder:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=LEFT, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=LEFT, fill=BOTH)
         HoverButton(prepare_dir_frame, image_path=r'widgets/open_dir.png',
                     command=lambda: self._open("prepared_data"),
                     width=18, height=18, bg=self.background, bd=0,
@@ -137,11 +158,12 @@ class Extractor(Frame):
         self.textboxes["prepared_data"].pack(side=BOTTOM)
 
         # Prediction Directory
-        pred_dir_frame = Frame(pred_dir_param, bg=self.background, bd=0, relief=SUNKEN)
+        pred_dir_frame = Frame(pred_dir_param, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=0)
         pred_dir_frame.pack(side=TOP, fill=BOTH)
 
         Label(pred_dir_frame, text="Prediction Folder:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=LEFT, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=LEFT, fill=BOTH)
         HoverButton(pred_dir_frame, image_path=r'widgets/open_dir.png',
                     command=lambda: self._open("pred_dir"),
                     width=18, height=18, bg=self.background, bd=0,
@@ -152,13 +174,15 @@ class Extractor(Frame):
         self.textboxes["pred_dir"].pack(side=BOTTOM)
 
         # Field Checkboxes
-        field_frame = Frame(field_param, bg='#353535', bd=1, relief=SUNKEN)
+        field_frame = Frame(field_param, bg=self.checkbox_color, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=1)
         field_frame.pack(expand=True, fill=BOTH, pady=10)
 
-        Label(field_frame, text="Field:", width=30, bg='#353535',
-              anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=X, padx=5, pady=5)
+        Label(field_frame, text="Field:", width=30, bg=self.checkbox_color,
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=X, padx=5, pady=5)
 
-        checkbox_frame = Frame(field_frame, bg='#353535', bd=1, relief=SUNKEN)
+        checkbox_frame = Frame(field_frame, bg=self.checkbox_color, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=1)
         checkbox_frame.pack(expand=True, fill=BOTH, side=BOTTOM)
 
         checkbox_frame.columnconfigure(0, weight=1)
@@ -173,25 +197,25 @@ class Extractor(Frame):
             if os.path.exists('./models/invoicenet/'):
                 state = key in os.listdir('./models/invoicenet/')
 
-            Checkbutton(checkbox_frame, fg="black", bg='#353535',
+            Checkbutton(checkbox_frame, fg="black", bg=self.checkbox_color,
                         activebackground=self.background, variable=self.checkboxes[key], anchor='w',
                         state="normal" if state else "disabled", highlightthickness=0).grid(row=idx // 2,
                                                                                             column=2 if idx % 2 else 0,
                                                                                             sticky='news', padx=(10, 0))
-            Label(checkbox_frame, text=key, bg='#353535',
-                  anchor='w', fg="white", font="Arial 8").grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='news')
+            Label(checkbox_frame, text=key, bg=self.checkbox_color,
+                  anchor='w', fg="white", font=("Arial", 8, "bold")).grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='news')
 
         # Prepare Data Button
         HoverButton(param_frame, image_path=r'widgets/prepare.png', command=self._prepare_data,
-                    text='Prepare Data', compound='center', font='Arial 10 bold', bg=self.background,
+                    text='Prepare Data', compound='center', font=("Arial", 10, "bold"), bg=self.background,
                     bd=0, highlightthickness=0, activebackground=self.background).grid(row=5, column=1, columnspan=2,
                                                                                        padx=20, pady=(20, 0),
                                                                                        sticky='news')
 
         # Progress Frame
         self.progress_label = Label(progress_frame, text="Preparing data:", bg=self.background,
-                                    anchor='w', fg="white", font="Arial 8")
-        self.progress_label.pack(side=TOP, expand=True, fill=X)
+                                    anchor='w', fg="white", font=("Arial", 8, "bold"))
+        self.progress_label.pack(side=TOP, expand=True, fill=X, pady=5)
         self.progressbar = Progressbar(progress_frame, orient=HORIZONTAL, length=100, mode='determinate')
         self.progressbar.pack(side=BOTTOM, expand=True, fill=X)
 
@@ -200,7 +224,8 @@ class Extractor(Frame):
         main_frame.rowconfigure(0, weight=1)
         main_frame.rowconfigure(1, weight=1)
 
-        button_frame = Frame(main_frame, bg=self.background, bd=0, relief=SUNKEN)
+        button_frame = Frame(main_frame, bg=self.background, bd=0, relief=SUNKEN,
+                             highlightbackground=self.border_color, highlightthickness=0)
         button_frame.grid(row=0, column=0, sticky='news')
 
         button_frame.rowconfigure(0, weight=1)
@@ -209,7 +234,7 @@ class Extractor(Frame):
         button_frame.columnconfigure(2, weight=1)
 
         self.start_button = HoverButton(button_frame, image_path=r'widgets/begin.png', command=self._start,
-                                        text='Extract', compound='center', font='Arial 10 bold', bg=self.background,
+                                        text='Extract', compound='center', font=("Arial", 10, "bold"), bg=self.background,
                                         bd=0, highlightthickness=0, activebackground=self.background)
         self.start_button.grid(row=0, column=1)
 
@@ -245,12 +270,14 @@ class Extractor(Frame):
         self.args["data_dir"] = self.textboxes["data_dir"].get("1.0", 'end-1c')
         self.args["prepared_data"] = self.textboxes["prepared_data"].get("1.0", 'end-1c')
         self.args["pred_dir"] = self.textboxes["pred_dir"].get("1.0", 'end-1c')
-        if not self.args["data_dir"].endswith('/'):
-            self.args["data_dir"] += '/'
         if not self.args["prepared_data"].endswith('/'):
             self.args["prepared_data"] += '/'
         if not self.args["pred_dir"].endswith('/'):
             self.args["pred_dir"] += '/'
+        if self.args["data_dir"] == '':
+            return
+        if not self.args["data_dir"].endswith('/'):
+            self.args["data_dir"] += '/'
 
     def _start(self):
         self._get_inputs()
@@ -298,7 +325,11 @@ class Extractor(Frame):
     def _prepare_data(self):
         self._get_inputs()
 
-        if not (os.path.exists(self.args["data_dir"]) or self.args["data_file"]):
+        if self.args["data_dir"] == '':
+            messagebox.showerror("Error", "No files were selected!")
+            return
+
+        if not os.path.exists(self.args["data_dir"]):
             messagebox.showerror("Error", "No files were selected!")
             return
 

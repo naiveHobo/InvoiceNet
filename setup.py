@@ -249,7 +249,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(name='InvoiceNet',
                  version='0.1',
                  description='A deep neural network to extract intelligent information from invoice documents',
-                 url='https://github.com/naiveHobo/invoicenet-gbr',
+                 url='https://github.com/naiveHobo/InvoiceNet',
                  author='naiveHobo',
                  author_email='sarthakmittal2608@gmail.com',
                  license='MIT',

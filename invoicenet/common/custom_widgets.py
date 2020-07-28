@@ -47,7 +47,7 @@ class Logger(Frame):
 
     def __init__(self, master=None, **kw):
         Frame.__init__(self, master, **kw)
-        self.text = scrolledtext.ScrolledText(self, height=15, bg='#000000', fg='#ffffff')
+        self.text = scrolledtext.ScrolledText(self, height=15, bg='#002b36', fg='#eee8d5')
         self.text.pack(expand=True, padx=50)
         self.text.configure(state='disabled')
 

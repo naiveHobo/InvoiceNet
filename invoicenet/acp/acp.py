@@ -25,6 +25,8 @@ class AttendCopyParse(Model):
     keep_prob = 0.5
 
     def __init__(self, field, train_data=None, val_data=None, test_data=None, batch_size=8, restore=False):
+        tf.reset_default_graph()
+
         self.field = field
         self.batch_size = batch_size * len(self.devices)
 

@@ -20,7 +20,8 @@ class Trainer(Frame):
 
     def __init__(self, master=None, **kw):
         Frame.__init__(self, master, **kw)
-        self.background = '#303030'
+        self.background = '#3c3f41'
+        self.border_color = '#303030'
         self.args = {
             "data_dir": "",
             "prepared_data": "processed_data",
@@ -40,6 +41,8 @@ class Trainer(Frame):
         x = (ws / 2) - (w / 2)
         y = (hs / 2) - (h / 2)
         self.master.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.master.maxsize(w, h)
+        self.master.minsize(w, h)
         self.master.title("InvoiceNet - Trainer")
 
         self.pack(fill=BOTH, expand=True)
@@ -52,21 +55,30 @@ class Trainer(Frame):
 
         self.configure(bg=self.background, bd=0)
 
-        title_frame = Frame(self, height=100, bg=self.background, bd=1, relief=SUNKEN)
-        param_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
-        progress_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
-        main_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN)
+        logo_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                           highlightbackground=self.border_color, highlightthickness=1)
+        param_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=1)
+        progress_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                               highlightbackground=self.border_color, highlightthickness=1)
+        main_frame = Frame(self, bg=self.background, bd=0, relief=SUNKEN,
+                           highlightbackground=self.border_color, highlightthickness=1)
 
-        title_frame.grid(row=0, column=0, sticky='news')
+        logo_frame.grid(row=0, column=0, sticky='news')
         param_frame.grid(row=1, column=0, sticky='news')
         progress_frame.grid(row=2, column=0, sticky='news', padx=50, pady=(0, 20))
         main_frame.grid(row=3, column=0, sticky='news')
 
-        # Title Frame
-        title_frame.columnconfigure(0, weight=1)
-        title_frame.rowconfigure(0, weight=1)
-        title_label = Label(title_frame, text="Trainer", bg=self.background, fg="white", font="Arial 24")
-        title_label.grid(row=0, column=0, sticky='nws', padx=10, pady=5)
+        # Logo Frame
+        logo_frame.columnconfigure(0, weight=1)
+        logo_frame.columnconfigure(1, weight=1)
+        logo_frame.columnconfigure(2, weight=2)
+        logo_frame.rowconfigure(0, weight=1)
+
+        self.logo_img = ImageTk.PhotoImage(Image.open(r'widgets/logo.png'))
+        Label(logo_frame, bg=self.background, image=self.logo_img, anchor='w').grid(row=0, column=0, sticky='news')
+        Label(logo_frame, text="InvoiceNet - Trainer", bg=self.background,
+              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=1, sticky='news', padx=50)
 
         # Param Frame
         param_frame.columnconfigure(0, weight=1)
@@ -79,21 +91,26 @@ class Trainer(Frame):
         param_frame.rowconfigure(3, weight=0)
         param_frame.rowconfigure(4, weight=1)
 
-        data_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        out_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        field_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
-        batch_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN)
+        data_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                           highlightbackground=self.border_color, highlightthickness=0)
+        out_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                          highlightbackground=self.border_color, highlightthickness=0)
+        field_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=0)
+        batch_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
+                            highlightbackground=self.border_color, highlightthickness=0)
 
         data_param.grid(row=1, column=1, pady=20, padx=20)
         out_param.grid(row=2, column=1, pady=20, padx=20)
         field_param.grid(row=1, column=2, pady=20, padx=20)
         batch_param.grid(row=2, column=2, pady=20, padx=20)
 
-        df = Frame(data_param, bg=self.background, bd=0, relief=SUNKEN)
+        df = Frame(data_param, bg=self.background, bd=0, relief=SUNKEN,
+                   highlightbackground=self.border_color, highlightthickness=0)
         df.pack(side=TOP, fill=BOTH)
 
         Label(df, text="Data Folder:", bg=self.background,
-              fg="white", font="Arial 8", anchor='w').pack(side=LEFT, fill=BOTH)
+              fg="white", font=("Arial", 8, "bold"), anchor='w').pack(side=LEFT, fill=BOTH)
         HoverButton(df, image_path=r'widgets/open_dir.png', command=lambda: self._open_dir("data_dir"),
                     width=18, height=18, bg=self.background, bd=0,
                     highlightthickness=0, activebackground='#558de8').pack(side=RIGHT)
@@ -102,11 +119,12 @@ class Trainer(Frame):
         self.textboxes["data_dir"].insert('1.0', self.args["data_dir"])
         self.textboxes["data_dir"].pack(side=BOTTOM)
 
-        of = Frame(out_param, bg=self.background, bd=0, relief=SUNKEN)
+        of = Frame(out_param, bg=self.background, bd=0, relief=SUNKEN,
+                   highlightbackground=self.border_color, highlightthickness=0)
         of.pack(side=TOP, fill=BOTH)
 
         Label(of, text="Processed Data Folder:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=LEFT, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=LEFT, fill=BOTH)
         HoverButton(of, image_path=r'widgets/open_dir.png', command=lambda: self._open_dir("prepared_data"),
                     width=18, height=18, bg=self.background, bd=0,
                     highlightthickness=0, activebackground='#558de8').pack(side=RIGHT)
@@ -116,7 +134,7 @@ class Trainer(Frame):
         self.textboxes["prepared_data"].pack(side=BOTTOM)
 
         Label(field_param, text="Field:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=BOTH)
         self.field_text = StringVar(field_param)
         self.field_text.set("invoicenumber")
 
@@ -129,7 +147,7 @@ class Trainer(Frame):
             field_list['menu'].entryconfigure(key, state="normal")
 
         Label(batch_param, text="Batch Size:", bg=self.background,
-              anchor='w', fg="white", font="Arial 8").pack(side=TOP, fill=BOTH)
+              anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=BOTH)
         self.batch_text = StringVar(batch_param)
         self.batch_text.set("4")
         batch_list = OptionMenu(batch_param, self.batch_text, "1", "2", "4", "8", "16", "32")
@@ -137,15 +155,15 @@ class Trainer(Frame):
         batch_list.pack(side=BOTTOM)
 
         HoverButton(param_frame, image_path=r'widgets/prepare.png', command=self._prepare_data,
-                    text='Prepare Data', compound='center', font='Arial 10 bold', bg=self.background,
+                    text='Prepare Data', compound='center', font=("Arial", 10, "bold"), bg=self.background,
                     bd=0, highlightthickness=0, activebackground=self.background).grid(row=3, column=1, columnspan=2,
                                                                                        padx=20, pady=(20, 0),
                                                                                        sticky='news')
 
         # Progress Frame
         self.progress_label = Label(progress_frame, text="Preparing data:", bg=self.background,
-                                    anchor='w', fg="white", font="Arial 8")
-        self.progress_label.pack(side=TOP, expand=True, fill=X)
+                                    anchor='w', fg="white", font=("Arial", 8, "bold"), bd=0, highlightthickness=0)
+        self.progress_label.pack(side=TOP, expand=True, fill=X, pady=5)
         self.progressbar = Progressbar(progress_frame, orient=HORIZONTAL, length=100, mode='determinate')
         self.progressbar.pack(side=BOTTOM, expand=True, fill=X)
 
@@ -154,7 +172,8 @@ class Trainer(Frame):
         main_frame.rowconfigure(0, weight=1)
         main_frame.rowconfigure(1, weight=1)
 
-        button_frame = Frame(main_frame, bg=self.background, bd=0, relief=SUNKEN)
+        button_frame = Frame(main_frame, bg=self.background, bd=0, relief=SUNKEN,
+                             highlightbackground=self.border_color, highlightthickness=0)
         button_frame.grid(row=0, column=0, sticky='news')
 
         button_frame.rowconfigure(0, weight=1)
@@ -163,10 +182,10 @@ class Trainer(Frame):
         button_frame.columnconfigure(2, weight=1)
 
         self.start_button = HoverButton(button_frame, image_path=r'widgets/begin.png', command=self._start,
-                                        text='Start', compound='center', font='Arial 10 bold', bg=self.background,
+                                        text='Start', compound='center', font=("Arial", 10, "bold"), bg=self.background,
                                         bd=0, highlightthickness=0, activebackground=self.background)
         self.stop_button = HoverButton(button_frame, image_path=r'widgets/stop.png', command=self._stop,
-                                       text='Stop', compound='center', font='Arial 10 bold', bg=self.background,
+                                       text='Stop', compound='center', font=("Arial", 10, "bold"), bg=self.background,
                                        bd=0, highlightthickness=0, activebackground=self.background)
 
         self.start_button.grid(row=0, column=1)
@@ -223,10 +242,12 @@ class Trainer(Frame):
         self.args["batch_size"] = int(self.batch_text.get())
         self.args["data_dir"] = self.textboxes["data_dir"].get("1.0", 'end-1c')
         self.args["prepared_data"] = self.textboxes["prepared_data"].get("1.0", 'end-1c')
-        if not self.args["data_dir"].endswith('/'):
-            self.args["data_dir"] += '/'
         if not self.args["prepared_data"].endswith('/'):
             self.args["prepared_data"] += '/'
+        if self.args["data_dir"] == '':
+            return
+        if not self.args["data_dir"].endswith('/'):
+            self.args["data_dir"] += '/'
 
     def _start(self):
         self._get_inputs()
@@ -265,6 +286,10 @@ class Trainer(Frame):
 
     def _prepare_data(self):
         self._get_inputs()
+
+        if self.args["data_dir"] == '':
+            messagebox.showerror("Error", "Data folder does not exist!")
+            return
 
         if not os.path.exists(self.args["data_dir"]):
             messagebox.showerror("Error", "Data folder does not exist!")
