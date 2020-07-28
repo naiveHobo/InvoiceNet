@@ -23,21 +23,23 @@ source env/bin/activate
 ```
 
 ## Data Preparation
-Your training data should be in the following format:
+The training data must be arranged in a single directory. The invoice documents are expected be PDF files and each invoice is expected to have a corresponding JSON label file with the same name. Your training data should be in the following format:
 
 ```
 train_data/
     invoice1.pdf
     invoice1.json
-    invoice2.pdf
-    invoice2.json
+    nike-invoice.pdf
+    nike-invoice.json
+    12345.pdf
+    12345.json
     ...
 ```
 
 The JSON labels should have the following format:
 ```
 {
- "vendorname":"Hetzner Online GmbH",
+ "vendorname":"Nike",
  "invoicedate":"12-01-2017",
  "invoicenumber":"R0007546449",
  "amounttotal":"137.51",
