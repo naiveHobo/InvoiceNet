@@ -158,7 +158,7 @@ python predict.py --field amounttotal
 ## Reference
 This implementation is largely based on the work of R. Palm et al, who should be cited if this is used in a scientific publication (or the preceding conference papers):
 
-[1] Palm, Rasmus Berg, Florian Laws, and Ole Winther. "Attend, Copy, Parse End-to-end information extraction from documents." 2019 International Conference on Document Analysis and Recognition (ICDAR). IEEE, 2019.
+[1] Palm, Rasmus Berg, Florian Laws, and Ole Winther. **"Attend, Copy, Parse End-to-end information extraction from documents."** 2019 International Conference on Document Analysis and Recognition (ICDAR). IEEE, 2019.
 
 ```
 @inproceedings{palm2019attend,
@@ -167,6 +167,23 @@ This implementation is largely based on the work of R. Palm et al, who should be
   booktitle={2019 International Conference on Document Analysis and Recognition (ICDAR)},
   pages={329--336},
   year={2019},
+  organization={IEEE}
+}
+```
+
+### Note
+An implementation of an inferior (also slightly broken) invoice handling system based on the paper **"Cloudscan - A configuration-free invoice analysis system using recurrent neural networks."** is available [here](https://github.com/naiveHobo/InvoiceNet/tree/cloudscan).
+
+[2] Palm, Rasmus Berg, Ole Winther, and Florian Laws. **"Cloudscan - A configuration-free invoice analysis system using recurrent neural networks."** 2017 14th IAPR International Conference on Document Analysis and Recognition (ICDAR). Vol. 1. IEEE, 2017.
+
+```
+@inproceedings{palm2017cloudscan,
+  title={Cloudscan-a configuration-free invoice analysis system using recurrent neural networks},
+  author={Palm, Rasmus Berg and Winther, Ole and Laws, Florian},
+  booktitle={2017 14th IAPR International Conference on Document Analysis and Recognition (ICDAR)},
+  volume={1},
+  pages={406--413},
+  year={2017},
   organization={IEEE}
 }
 ```
