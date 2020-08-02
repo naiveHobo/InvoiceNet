@@ -81,16 +81,15 @@ class Extractor(Frame):
 
         # Param Frame
         param_frame.columnconfigure(0, weight=1)
-        param_frame.columnconfigure(1, weight=0)
-        param_frame.columnconfigure(2, weight=0)
+        param_frame.columnconfigure(1, weight=1)
+        param_frame.columnconfigure(2, weight=1)
         param_frame.columnconfigure(3, weight=1)
         param_frame.rowconfigure(0, weight=1)
-        param_frame.rowconfigure(1, weight=0)
-        param_frame.rowconfigure(2, weight=0)
-        param_frame.rowconfigure(3, weight=0)
-        param_frame.rowconfigure(4, weight=0)
-        param_frame.rowconfigure(5, weight=0)
-        param_frame.rowconfigure(6, weight=1)
+        param_frame.rowconfigure(1, weight=1)
+        param_frame.rowconfigure(2, weight=1)
+        param_frame.rowconfigure(3, weight=1)
+        param_frame.rowconfigure(4, weight=1)
+        param_frame.rowconfigure(5, weight=1)
 
         data_file_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
                                 highlightbackground=self.border_color, highlightthickness=0)
@@ -103,11 +102,11 @@ class Extractor(Frame):
         field_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
                             highlightbackground=self.border_color, highlightthickness=0)
 
-        data_file_param.grid(row=1, column=1, pady=10, padx=20)
-        data_dir_param.grid(row=2, column=1, pady=10, padx=20)
-        prepare_dir_param.grid(row=3, column=1, pady=10, padx=20)
-        pred_dir_param.grid(row=4, column=1, pady=10, padx=20)
-        field_param.grid(row=1, column=2, rowspan=4, pady=10, padx=10, sticky='news')
+        data_file_param.grid(row=1, column=1)
+        data_dir_param.grid(row=2, column=1)
+        prepare_dir_param.grid(row=3, column=1)
+        pred_dir_param.grid(row=4, column=1)
+        field_param.grid(row=1, column=2, rowspan=4, sticky='news')
 
         # Invoice File
         data_file_frame = Frame(data_file_param, bg=self.background, bd=0, relief=SUNKEN,
@@ -176,7 +175,7 @@ class Extractor(Frame):
         # Field Checkboxes
         field_frame = Frame(field_param, bg=self.checkbox_color, bd=0, relief=SUNKEN,
                             highlightbackground=self.border_color, highlightthickness=1)
-        field_frame.pack(expand=True, fill=BOTH, pady=10)
+        field_frame.pack(expand=True, fill=BOTH)
 
         Label(field_frame, text="Field:", width=30, bg=self.checkbox_color,
               anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=X, padx=5, pady=5)
@@ -198,12 +197,12 @@ class Extractor(Frame):
                 state = key in os.listdir('./models/invoicenet/')
 
             Checkbutton(checkbox_frame, fg="black", bg=self.checkbox_color,
-                        activebackground=self.background, variable=self.checkboxes[key], anchor='w',
+                        activebackground=self.background, variable=self.checkboxes[key],
                         state="normal" if state else "disabled", highlightthickness=0).grid(row=idx // 2,
                                                                                             column=2 if idx % 2 else 0,
                                                                                             sticky='news', padx=(10, 0))
             Label(checkbox_frame, text=key, bg=self.checkbox_color,
-                  anchor='w', fg="white", font=("Arial", 8, "bold")).grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='news')
+                  fg="white", font=("Arial", 8, "bold")).grid(row=idx // 2, column=3 if idx % 2 else 1, sticky='nws')
 
         # Prepare Data Button
         HoverButton(param_frame, image_path=r'widgets/prepare.png', command=self._prepare_data,
