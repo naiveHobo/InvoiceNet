@@ -93,14 +93,9 @@ class AttendCopyParse(Model):
         label_cross_entropy = torch.sum(
             torch.nn.functional.cross_entropy(prediction, target, reduction='none') * mask,
             dim=1) / torch.sum(mask, dim=1)
-
-        reg_loss = 0.0
-        for param in self.model.parameters():
-            reg_loss += 0.5 * (param ** 2).sum()
-
         cross_entropy_uniform_loss = AttendCopyParse.frac_ce_loss * torch.mean(cross_entropy_uniform)
         field_loss = torch.mean(label_cross_entropy)
-        loss = field_loss + reg_loss + cross_entropy_uniform_loss
+        loss = field_loss + cross_entropy_uniform_loss
         return loss
 
     def train_step(self):
@@ -134,6 +129,7 @@ class AttendCopyParse(Model):
         return self.criterion(parsed, cross_entropy_uniform, y).item()
 
     def save(self, name):
+        os.makedirs("./models/invoicenet/%s/" % self.field, exist_ok=True)
         torch.save({
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
