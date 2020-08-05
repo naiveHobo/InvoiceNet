@@ -1,53 +1,15 @@
-import random
 from decimal import Decimal
 
-import tensorflow as tf
-from tensorflow.python.util import deprecation
+import torch
+from torch.utils.data import Dataset
 
 from ..acp.data import RealData
+from ..common.util import UnkDict
 
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-
-class Data:
-    def sample_generator(self):
-        raise NotImplementedError
-
-    def types(self):
-        raise NotImplementedError
-
-    def shapes(self):
-        raise NotImplementedError
-
-    def array_to_str(self, arr):
-        raise NotImplementedError
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class UnkDict:
-    unk = '<UNK>'
-
-    def __init__(self, items):
-        if self.unk not in items:
-            raise ValueError("items must contain %s", self.unk)
-
-        self.delegate = dict([(c, i) for i, c in enumerate(items)])
-        self.rdict = {i: c for c, i in self.delegate.items()}
-
-    def __getitem__(self, item):
-        if item in self.delegate:
-            return self.delegate[item]
-        else:
-            return self.delegate[self.unk]
-
-    def __len__(self):
-        return len(self.delegate)
-
-    def idx2key(self, idx):
-        return self.rdict[idx]
-
-
-class ParseData(Data):
+class ParseData(Dataset):
     chars = RealData.chars
     pad_idx = RealData.pad_idx
     eos_idx = RealData.eos_idx
@@ -59,14 +21,8 @@ class ParseData(Data):
         self.output_dict = UnkDict(self.chars)
         self.n_output = len(self.output_dict)
         self.output_length = output_length
-
-    def types(self):
-        # source, target
-        return tf.int32, tf.int32
-
-    def shapes(self):
-        # source, target
-        return self.input_length, self.output_length
+        with open(self.samples_fname) as samples_file:
+            self.samples = samples_file.readlines()
 
     def array_to_str(self, arr):
         """
@@ -83,22 +39,18 @@ class ParseData(Data):
             strs.append(s)
         return strs
 
-    def normalize(self, str):
-        return '{:f}'.format(Decimal(str).normalize())
+    @staticmethod
+    def normalize(text):
+        return '{:f}'.format(Decimal(text).normalize())
 
     def _encode_str(self, field, max_length):
         encoded = [self.output_dict[c] for c in list(field)[:max_length - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_length - len(encoded))
+        return torch.LongTensor(encoded)
 
-        return encoded
+    def __len__(self):
+        return len(self.samples)
 
-
-class TabSeparated(ParseData):
-    def sample_generator(self):
-        with open(self.samples_fname) as samples_file:
-            samples = samples_file.readlines()
-
-        while True:
-            for s in random.sample(samples, len(samples)):
-                source, target = s.strip().split("\t")
-                yield self._encode_str(source, self.input_length), self._encode_str(target, self.output_length)
+    def __getitem__(self, idx):
+        source, target = self.samples[idx].strip().split("\t")
+        return self._encode_str(source, self.input_length), self._encode_str(target, self.output_length)

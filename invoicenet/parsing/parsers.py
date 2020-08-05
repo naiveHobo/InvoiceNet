@@ -1,17 +1,36 @@
 import os
-import tensorflow as tf
-import tensorflow.contrib.rnn as rnn
-from tensorflow.contrib import layers
-from tensorflow.python.util import deprecation
+import math
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from ..acp.data import RealData
 
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class Parser:
-    def parse(self, x, context, is_training):
+class Conv1dSame(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1):
+        super().__init__()
+        self.cut_last_element = (kernel_size % 2 == 0 and stride == 1 and dilation % 2 == 1)
+        self.padding = math.ceil((1 - stride + dilation * (kernel_size-1))/2)
+        self.conv = nn.Conv1d(
+            in_channels, out_channels, kernel_size, padding=self.padding, stride=stride, dilation=dilation)
+
+    def forward(self, x):
+        if self.cut_last_element:
+            return self.conv(x)[:, :, :-1]
+        else:
+            return self.conv(x)
+
+
+class Parser(nn.Module):
+
+    def __init__(self):
+        super(Parser, self).__init__()
+
+    def forward(self, x, context):
         raise NotImplementedError()
 
     def restore(self):
@@ -22,34 +41,33 @@ class Parser:
 
 
 class NoOpParser(Parser):
+
+    def __init__(self):
+        super(NoOpParser, self).__init__()
+
+    def forward(self, x, context):
+        return x
+
     def restore(self):
         return None
 
-    def parse(self, x, context, is_training):
-        return x
-
 
 class OptionalParser(Parser):
-    def __init__(self, delegate: Parser, bs, seq_out, n_out, eos_idx):
-        self.eos_idx = eos_idx
-        self.n_out = n_out
-        self.seq_out = seq_out
-        self.bs = bs
 
+    def __init__(self, delegate: Parser, batch_size, context_size, seq_out, n_out, eos_idx):
+        super(OptionalParser, self).__init__()
+        self.empty_answer = torch.full((batch_size, seq_out), eos_idx, dtype=torch.long).to(device)
+        self.empty_answer = F.one_hot(self.empty_answer, n_out).float().permute(0, 2, 1)  # (bs, n_out, seq)
         self.delegate = delegate
+        self.linear = nn.Linear(in_features=context_size, out_features=1)
 
     def restore(self):
         return self.delegate.restore()
 
-    def parse(self, x, context, is_training):
-        parsed = self.delegate.parse(x, context, is_training)
-
-        empty_answer = tf.constant(self.eos_idx, tf.int32, shape=(self.bs, self.seq_out))
-        empty_answer = tf.one_hot(empty_answer, self.n_out)  # (bs, seq_out, n_out)
-
-        logit_empty = layers.fully_connected(context, 1, activation_fn=None)  # (bs, 1)
-
-        return parsed + tf.reshape(logit_empty, (self.bs, 1, 1)) * empty_answer
+    def forward(self, x, context):
+        parsed = self.delegate(x, context)
+        logit_empty = self.linear(context)  # (bs, 1)
+        return parsed + torch.reshape(logit_empty, (-1, 1, 1)) * self.empty_answer
 
 
 class AmountParser(Parser):
@@ -59,57 +77,51 @@ class AmountParser(Parser):
     seq_in = RealData.seq_in
     seq_out = RealData.seq_amount
     n_out = len(RealData.chars)
-    scope = 'parse/amount'
 
-    def __init__(self, bs):
+    def __init__(self, batch_size):
+        super(AmountParser, self).__init__()
         os.makedirs(r"./models/parsers/amount", exist_ok=True)
-        self.bs = bs
+        self.decoder_input = torch.zeros((batch_size, self.seq_out, 1), dtype=torch.float32).to(device)
+        self.encoder = nn.LSTM(self.n_out, 128, bidirectional=True, batch_first=True)
+        self.decoder = nn.LSTM(1, 128, batch_first=True)
+        self.linear_enc = nn.Linear(256, 128)
+        self.linear_dec = nn.Linear(128, 128)
+        self.linear_att = nn.Linear(128, 1)
+        self.linear_p_gen = nn.Linear(256, 1)
+        self.linear_gen = nn.Linear(256, self.n_out)
 
     def restore(self):
-        return self.scope, r"./models/parsers/amount/best"
+        return r"./models/parsers/amount/best"
 
-    def parse(self, x, context, is_training):
-        with tf.variable_scope(self.scope):
-            with tf.variable_scope("encoder"):
-                lstm_fw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                lstm_bw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(cell_fw=lstm_fw_cell,
-                                                                            cell_bw=lstm_bw_cell,
-                                                                            inputs=x,
-                                                                            dtype=tf.float32,
-                                                                            scope="BiLSTM")
+    def forward(self, x, context):
+        # encoder
+        x = x.permute(0, 2, 1)                                      # (bs, seq_in, n_out)
+        h_in, _ = self.encoder(x)                                   # (bs, seq_in, 256)
+        h_in = torch.reshape(h_in, (-1, self.seq_in, 1, 256))       # (bs, seq_in, 1, 256)
 
-                h_in = tf.concat([output_fw, output_bw], axis=2)
-                h_in = tf.reshape(h_in, (self.bs, self.seq_in, 1, 256))  # (bs, seq_in, 1, 128)
+        # decoder
+        h_out, _ = self.decoder(self.decoder_input)                 # (bs, seq_out, 128)
+        h_out = torch.reshape(h_out, (-1, 1, self.seq_out, 128))    # (bs, 1, seq_out, 128)
 
-            with tf.variable_scope("decoder"):
-                out_input = tf.zeros((self.bs, self.seq_out, 1))
-                out_input = tf.unstack(out_input, self.seq_out, 1)
-                cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                h_out, _ = rnn.static_rnn(cell, out_input, dtype=tf.float32)
-                h_out = tf.reshape(tf.concat(h_out, axis=-1), [self.bs, 1, self.seq_out, 128])
+        # bahdanau attention
+        att = torch.tanh(self.linear_dec(h_out) + self.linear_enc(h_in))        # (bs, seq_in, seq_out, 128)
+        att = self.linear_att(att)                                              # (bs, seq_in, seq_out, 1)
+        att = torch.softmax(att, dim=1)                                         # (bs, seq_in, seq_out, 1)
+        attended_h = torch.sum(att * h_in, dim=1)                               # (bs, seq_out, 256)
 
-            # Bahdanau attention
-            att = tf.nn.tanh(layers.fully_connected(h_out, 128, activation_fn=None) + layers.fully_connected(h_in, 128,
-                                                                                                             activation_fn=None))
-            att = layers.fully_connected(att, 1, activation_fn=None)  # (bs, seq_in, seq_out, 1)
-            att = tf.nn.softmax(att, axis=1)  # (bs, seq_in, seq_out, 1)
+        p_gen = self.linear_p_gen(attended_h)                                   # (bs, seq_out, 1)
+        p_copy = (1 - p_gen)
 
-            attended_h = tf.reduce_sum(att * h_in, axis=1)  # (bs, seq_out, 128)
+        # Generate
+        gen = self.linear_gen(attended_h)                                       # (bs, seq_out, n_out)
+        gen = torch.reshape(gen, (-1, self.seq_out, self.n_out))
 
-            p_gen = layers.fully_connected(attended_h, 1, activation_fn=tf.nn.sigmoid)  # (bs, seq_out, 1)
-            p_copy = (1 - p_gen)
+        # Copy
+        copy = torch.log(
+            torch.sum(att * x.unsqueeze(2).contiguous(), dim=1) + 1e-8)   # (bs, seq_out, n_out)
 
-            # Generate
-            gen = layers.fully_connected(attended_h, self.n_out, activation_fn=None)  # (bs, seq_out, n_out)
-            gen = tf.reshape(gen, (self.bs, self.seq_out, self.n_out))
-
-            # Copy
-            copy = tf.log(tf.reduce_sum(att * tf.reshape(x, (self.bs, self.seq_in, 1, self.n_out)),
-                                        axis=1) + 1e-8)  # (bs, seq_out, n_out)
-
-            output_logits = p_copy * copy + p_gen * gen
-            return output_logits
+        output_logits = p_copy * copy + p_gen * gen
+        return output_logits.permute(0, 2, 1)
 
 
 class DateParser(Parser):
@@ -118,26 +130,43 @@ class DateParser(Parser):
     """
     seq_out = RealData.seq_date
     n_out = len(RealData.chars)
-    scope = 'parse/date'
 
-    def __init__(self, bs):
+    def __init__(self):
+        super(DateParser, self).__init__()
         os.makedirs(r"./models/parsers/date", exist_ok=True)
-        self.bs = bs
+
+        self.conv_block = nn.Sequential(
+            Conv1dSame(self.n_out, 128, 3),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2, 2),
+            Conv1dSame(128, 128, 3),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2, 2),
+            Conv1dSame(128, 128, 3),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2, 2),
+            Conv1dSame(128, 128, 3),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2, 2),
+        )
+
+        self.linear_block = nn.Sequential(
+            nn.Linear(256, 256),
+            nn.Linear(256, 256),
+            nn.Linear(256, 256),
+        )
+
+        self.dropout = nn.Dropout()
+        self.linear_out = nn.Linear(256, self.seq_out * self.n_out)
 
     def restore(self):
-        return self.scope, r"./models/parsers/date/best"
+        return r"./models/parsers/date/best"
 
-    def parse(self, x, context, is_training):
-        with tf.variable_scope(self.scope):
-            for i in range(4):
-                x = tf.layers.conv1d(x, 128, 3, padding="same", activation=tf.nn.relu)  # (bs, 128, 128)
-                x = tf.layers.max_pooling1d(x, 2, 2)  # (bs, 64-32-16-8, 128)
-            x = tf.reduce_sum(x, axis=1)  # (bs, 128)
-
-            x = tf.concat([x, context], axis=1)  # (bs, 256)
-            for i in range(3):
-                x = layers.fully_connected(x, 256)
-
-            x = layers.dropout(x, is_training=is_training)
-            x = layers.fully_connected(x, self.seq_out * self.n_out, activation_fn=None)
-            return tf.reshape(x, (self.bs, self.seq_out, self.n_out))
+    def forward(self, x, context):
+        x = self.conv_block(x)                  # (bs, 128, 8)
+        x = torch.sum(x, dim=2)                 # (bs, 128)
+        x = torch.cat([x, context], dim=1)      # (bs, 256)
+        x = self.linear_block(x)                # (bs, 256)
+        x = self.dropout(x)                     # (bs, 256)
+        x = self.linear_out(x)                  # (bs, seq_out * n_out)
+        return torch.reshape(x, (-1, self.n_out, self.seq_out))

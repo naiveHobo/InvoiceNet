@@ -1,65 +1,21 @@
 import glob
 import hashlib
 import json
-import random
 import string
-import time
-import logging
+import re
 
 import numpy as np
-import re
-import tensorflow as tf
 from PIL import Image
 from decimal import Decimal
 
+import torch
+from torch.utils.data import Dataset
+
 from .. import FIELDS, FIELD_TYPES
-
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-random.seed(0)
+from ..common.util import UnkDict
 
 
-class Data:
-    def sample_generator(self):
-        raise NotImplementedError
-
-    def types(self):
-        raise NotImplementedError
-
-    def shapes(self):
-        raise NotImplementedError
-
-    def array_to_str(self, arr):
-        raise NotImplementedError
-
-
-class UnkDict:
-    unk = '<UNK>'
-
-    def __init__(self, items):
-        if self.unk not in items:
-            raise ValueError("items must contain %s", self.unk)
-
-        self.delegate = dict([(c, i) for i, c in enumerate(items)])
-        self.rdict = {i: c for c, i in self.delegate.items()}
-
-    def __getitem__(self, item):
-        if item in self.delegate:
-            return self.delegate[item]
-        else:
-            return self.delegate[self.unk]
-
-    def __len__(self):
-        return len(self.delegate)
-
-    def idx2key(self, idx):
-        return self.rdict[idx]
-
-
-class RealData(Data):
-
+class RealData(Dataset):
     im_size = 128, 128
     chars = ['<PAD>', '<EOS>', '<UNK>'] + list(string.printable)
     output_dict = UnkDict(chars)
@@ -85,27 +41,12 @@ class RealData(Data):
     parses_idx = {'date': 0, 'amount': 1}
 
     def __init__(self, field, data_dir=None, data_file=None):
-        self.logger = logging.getLogger("data")
         self.field = field
         self.filenames = []
         self.data_file = data_file
         self.filenames = [data_file['page']['filename']] if data_file else []
         if data_dir:
             self.filenames = glob.glob(data_dir + "**/*.json", recursive=True)
-
-    def shapes_types(self):
-        return zip(*(
-            ((None, 5), tf.int64),  # i
-            ((None,), tf.float32),  # v
-            ((None,), tf.int64),  # s
-            (self.im_size + (3,), tf.float32),  # pixels
-            (self.im_size, tf.int32),  # word_indices
-            (self.im_size, tf.int32),  # pattern_indices
-            (self.im_size, tf.int32),  # char_indices
-            (self.im_size, tf.float32),  # memory_mask
-            (self.im_size + (4, 2), tf.float32),  # parses
-            ((self.seq_out[FIELDS[self.field]],), tf.int32)  # target
-        ))
 
     def _encode_ngrams(self, n_grams, height, width):
         v_ar = self.im_size[0] / height
@@ -161,9 +102,16 @@ class RealData(Data):
 
         assert len(memory_indices) > 0
         memory_values = [1.] * len(memory_indices)
-        memory_dense_shape = self.im_size + (self.n_memories, self.seq_in, self.n_output)
+        memory_dense_shape = (self.im_size[0] * self.im_size[1] * self.n_memories, self.n_output, self.seq_in)
 
-        return word_indices, pattern_indices, char_indices, memory_mask, parses, memory_indices, memory_values, memory_dense_shape
+        return (word_indices,
+                pattern_indices,
+                char_indices,
+                memory_mask,
+                parses,
+                memory_indices,
+                memory_values,
+                memory_dense_shape)
 
     def append_indices(self, top, bottom, left, right, m_idx, char_idx, char_pos, indices):
         assert 0 <= m_idx < self.n_memories, m_idx
@@ -180,7 +128,8 @@ class RealData(Data):
             assert 0 <= ci_idx < self.n_output, ci_idx
 
         for cp_idx, ci_idx in zip(char_pos, char_idx):
-            indices.append((top, left, m_idx, cp_idx, ci_idx))
+            indices.append((
+                (top * self.im_size[1] * RealData.n_memories) + (left * RealData.n_memories) + m_idx, ci_idx, cp_idx))
 
     def encode_image(self, page):
         im = Image.open(page["filename"])
@@ -191,6 +140,18 @@ class RealData(Data):
     @staticmethod
     def _preprocess_amount(value):
         return '{:f}'.format(Decimal(value).normalize())
+
+    @staticmethod
+    def _to_tensor(i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target):
+        return (
+            torch.sparse.FloatTensor(torch.LongTensor(i).t(), torch.FloatTensor(v), torch.Size(s)),
+            torch.FloatTensor(pixels),
+            torch.LongTensor(word_indices),
+            torch.LongTensor(pattern_indices),
+            torch.LongTensor(char_indices),
+            torch.FloatTensor(memory_mask),
+            torch.FloatTensor(parses)
+        ), torch.LongTensor(target)
 
     def _load_document(self, doc_id):
         with open(doc_id, encoding="utf8") as fp:
@@ -208,7 +169,8 @@ class RealData(Data):
             target = self._preprocess_amount(target)
         target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
 
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
+        return self._to_tensor(
+            i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target)
 
     def _load_single_document(self):
         pixels = self.data_file['image']
@@ -227,12 +189,10 @@ class RealData(Data):
             target = self._preprocess_amount(target)
         target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
 
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
+        return self._to_tensor(
+            i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target)
 
     def array_to_str(self, arr):
-        """
-        :param arr: (bs, seq) int32
-        """
         strs = []
         for r in arr:
             s = ""
@@ -244,30 +204,13 @@ class RealData(Data):
             strs.append(s)
         return strs
 
-    def sample_generator(self):
-        if self.data_file:
-            doc = self._load_single_document()
-            yield doc
-            return
-
-        exceptions = 0
-        np.random.seed(0)
-        random.shuffle(self.filenames)
-
-        spent_loading = 0
-        for i, doc_id in enumerate(self.filenames):
-            try:
-                start = time.perf_counter()
-                doc = self._load_document(doc_id.strip())
-                spent_loading += (time.perf_counter() - start)
-                yield doc
-            except GeneratorExit:
-                return
-            except:
-                self.logger.exception(doc_id + "%d/%d" % (exceptions, i))
-                exceptions += 1
-
     def _encode_sequence(self, value, max_len):
         encoded = [self.output_dict[c] for c in list(value)[:max_len - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_len - len(encoded))
         return encoded
+
+    def __len__(self):
+        return len(self.filenames)
+
+    def __getitem__(self, idx):
+        return self._load_document(self.filenames[idx].strip())

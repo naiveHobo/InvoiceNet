@@ -1,100 +1,97 @@
-from invoicenet.common import util
-
 from datetime import datetime
+import numpy as np
 
-from tensorflow.python.ops.losses.losses_impl import Reduction
+import torch.nn.functional
+from torch.utils.data import DataLoader
 
 from ..common.model import Model
 from .parsers import *
 from .data import *
 
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class Parser(Model):
-    devices = util.get_devices()
     context_size = 128
     experiment = datetime.now()
 
     def __init__(self, field, batch_size=128, restore=False):
-        self.batch_size = batch_size * len(self.devices)
+        self.batch_size = batch_size
         self.type = field
         self.output_length = {"date": RealData.seq_date, "amount": RealData.seq_amount}[self.type]
         self.continue_from = './models/parsers/{}/best'.format(self.type) if restore else None
 
-        self.train = train = TabSeparated('invoicenet/parsing/data/%s/train.tsv' % self.type, self.output_length)
-        self.train_iterator = self.iterator(train)
+        train_data = ParseData('invoicenet/parsing/data/%s/train.tsv' % self.type, self.output_length)
+        val_data = ParseData('invoicenet/parsing/data/%s/valid.tsv' % self.type, self.output_length)
 
-        valid = TabSeparated('invoicenet/parsing/data/%s/valid.tsv' % self.type, self.output_length)
-        self.valid_iterator = self.iterator(valid)
+        self.train_data_loader = DataLoader(train_data,
+                                            batch_size=self.batch_size,
+                                            shuffle=True,
+                                            num_workers=16,
+                                            drop_last=True)
 
-        parser = {'amount': AmountParser(self.batch_size), 'date': DateParser(self.batch_size)}[self.type]
+        self.val_data_loader = DataLoader(val_data,
+                                          batch_size=self.batch_size,
+                                          shuffle=False,
+                                          num_workers=16,
+                                          drop_last=True)
 
-        print("Building graph...")
-        config = tf.ConfigProto(allow_soft_placement=False)
-        self.session = tf.Session(config=config)
-        self.is_training_ph = tf.placeholder(tf.bool)
+        self.train_data_gen = iter(self.train_data_loader)
+        self.val_data_gen = iter(self.val_data_loader)
 
-        source, self.targets = tf.cond(
-            self.is_training_ph,
-            true_fn=lambda: self.train_iterator.get_next(),
-            false_fn=lambda: self.valid_iterator.get_next()
-        )
-        self.sources = source
+        self.context = torch.zeros((self.batch_size, self.context_size), dtype=torch.float32).to(device)
 
-        oh_inputs = tf.one_hot(source, train.n_output)  # (bs, seq, n_out)
+        self.parser = {'amount': AmountParser(self.batch_size), 'date': DateParser()}[self.type]
+        self.parser = self.parser.to(device)
 
-        context = tf.zeros(
-            (self.batch_size, self.context_size),
-            dtype=tf.float32,
-            name=None
-        )
-
-        output_logits = parser.parse(oh_inputs, context, self.is_training_ph)
-
-        with tf.variable_scope('loss'):
-            mask = tf.logical_not(tf.equal(self.targets, train.pad_idx))
-            label_cross_entropy = tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(self.targets, output_logits, reduction=Reduction.NONE) * tf.to_float(mask)) / tf.log(2.)
-
-            chars = tf.argmax(output_logits, axis=2, output_type=tf.int32)
-            equal = tf.equal(self.targets, chars)
-            acc = tf.reduce_mean(tf.to_float(tf.reduce_all(tf.logical_or(equal, tf.logical_not(mask)), axis=1)))
-
-        self.actual = chars
-        self.loss = label_cross_entropy
-
-        self.global_step = tf.Variable(initial_value=0, trainable=False)
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
-
-        self.train_step = self.optimizer.minimize(self.loss, global_step=self.global_step, colocate_gradients_with_ops=True)
-
-        self.session.run(tf.global_variables_initializer())
-        self.saver = tf.train.Saver()
-        # util.print_vars(tf.trainable_variables())
+        self.optimizer = torch.optim.Adam(self.parser.parameters(), lr=1e-4)
 
         if self.continue_from:
             print("Restoring " + self.continue_from + "...")
-            self.saver.restore(self.session, self.continue_from)
+            self.load(self.continue_from)
 
-    def iterator(self, data):
-        return tf.data.Dataset.from_generator(
-            data.sample_generator,
-            data.types(),
-            data.shapes()
-        ).repeat(-1).batch(self.batch_size).prefetch(16).make_one_shot_iterator()
+    @staticmethod
+    def criterion(prediction, target):
+        mask = (target != ParseData.pad_idx).float()
+        label_cross_entropy = torch.mean(
+            torch.nn.functional.cross_entropy(prediction, target, reduction='none') * mask) / np.log(2.)
+        return label_cross_entropy
 
-    def train_batch(self):
-        _, loss = self.session.run([self.train_step, self.loss], {self.is_training_ph: True})
-        return loss
+    def train_step(self):
+        try:
+            x, y = next(self.train_data_gen)
+        except StopIteration:
+            self.train_data_gen = iter(self.train_data_loader)
+            x, y = next(self.train_data_gen)
+        x, y = x.to(device), y.to(device)
+        x = torch.nn.functional.one_hot(x, RealData.n_output).float().permute(0, 2, 1)  # (bs, n_out, seq)
+        self.parser.train()
+        self.optimizer.zero_grad()
+        parsed = self.parser(x, self.context)
+        loss = self.criterion(parsed, y)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
 
-    def val_batch(self):
-        loss, sources, actual, targets, step = self.session.run([self.loss, self.sources, self.actual, self.targets, self.global_step], {self.is_training_ph: False})
-        return loss
+    def val_step(self):
+        try:
+            x, y = next(self.val_data_gen)
+        except StopIteration:
+            self.val_data_gen = iter(self.val_data_loader)
+            x, y = next(self.val_data_gen)
+        x, y = x.to(device), y.to(device)
+        x = torch.nn.functional.one_hot(x, RealData.n_output).float().permute(0, 2, 1)  # (bs, n_out, seq)
+        self.parser.eval()
+        parsed = self.parser(x, self.context)
+        return self.criterion(parsed, y).item()
 
     def save(self, name):
-        self.saver.save(self.session, "./models/parsers/%s/%s" % (self.type, name))
+        torch.save({
+            'model_state_dict': self.parser.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }, "./models/parsers/%s/%s" % (self.type, name))
 
-    def load(self, name):
-        self.saver.restore(self.session, name)
+    def load(self, path):
+        checkpoint = torch.load(path)
+        self.parser.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

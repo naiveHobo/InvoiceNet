@@ -5,63 +5,31 @@ from __future__ import print_function
 import re
 import pytesseract
 from pytesseract import Output
-import numpy as np
-import tensorflow as tf
-from tensorflow.python.client import device_lib
 import datefinder
 import datetime
 
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+class UnkDict:
+    unk = '<UNK>'
 
-def print_vars(vars):
-    total = 0
-    for var in vars:
-        shape = tf.shape(var)
-        print(var.name, shape)
-        total += np.prod(shape)
-    print(total)
+    def __init__(self, items):
+        if self.unk not in items:
+            raise ValueError("items must contain %s", self.unk)
 
+        self.delegate = dict([(c, i) for i, c in enumerate(items)])
+        self.rdict = {i: c for c, i in self.delegate.items()}
 
-def get_devices():
-    gpus = [x.name for x in (device_lib.list_local_devices()) if x.device_type == 'GPU']
-    if len(gpus) > 0:
-        devices = gpus
-    else:
-        print("WARNING: No GPU's found. Using CPU")
-        devices = ['cpu:0']
+    def __getitem__(self, item):
+        if item in self.delegate:
+            return self.delegate[item]
+        else:
+            return self.delegate[self.unk]
 
-    print("Using devices: ", devices)
-    return devices
+    def __len__(self):
+        return len(self.delegate)
 
-
-def batch_parallel(map_fn, devices, **kwargs):
-    """
-    Parallelize map_fn across devices.
-
-    :param map_fn: function that takes kwargs and returns a tuple of tensors
-    :param devices: A list of devices to parallelize over
-    :param kwargs: kwargs of input to map, will be split along axis 0.
-    :return: The outputs of map_fn
-    The inner list is the output from each device.
-    """
-    in_splits = {}
-    for k, v in kwargs.items():
-        in_splits[k] = tf.split(v, len(devices))
-
-    out_splits = {}
-    for i, device in enumerate(devices):
-        with tf.device(device):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=i > 0):
-                outs = map_fn(**{k: v[i] for k, v in in_splits.items()})
-                for j, out in enumerate(outs):
-                    if j not in out_splits:
-                        out_splits[j] = []
-                    out_splits[j].append(out)
-
-    return [out_splits[i] for i in range(len(out_splits))]
+    def idx2key(self, idx):
+        return self.rdict[idx]
 
 
 class TextParser:

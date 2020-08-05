@@ -233,8 +233,8 @@ class Extractor(Frame):
         button_frame.columnconfigure(2, weight=1)
 
         self.start_button = HoverButton(button_frame, image_path=r'widgets/begin.png', command=self._start,
-                                        text='Extract', compound='center', font=("Arial", 10, "bold"), bg=self.background,
-                                        bd=0, highlightthickness=0, activebackground=self.background)
+                                        text='Extract', compound='center', font=("Arial", 10, "bold"), bd=0,
+                                        bg=self.background, highlightthickness=0, activebackground=self.background)
         self.start_button.grid(row=0, column=1)
 
         self.logger = Logger(main_frame, bg=self.background, bd=0, relief=SUNKEN)

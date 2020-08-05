@@ -1,8 +1,8 @@
 class Model:
-    def train_batch(self):
+    def train_step(self):
         raise NotImplementedError()
 
-    def val_batch(self):
+    def val_step(self):
         raise NotImplementedError
 
     def load(self, name):

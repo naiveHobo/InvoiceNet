@@ -210,14 +210,14 @@ class Trainer(Frame):
         self.logger.log("Initializing training!")
         start = time.time()
         for i in range(n_updates):
-            train_loss = model.train_batch()
+            train_loss = model.train_step()
             if not np.isfinite(train_loss):
                 raise ValueError("NaN loss")
 
             if i % print_interval == 0:
                 took = time.time() - start
-                val_loss = model.val_batch()
-                self.logger.log("%d/%d %.4f batches/s train loss: %.4f val loss: %.4f" % (
+                val_loss = model.val_step()
+                self.logger.log("%d/%d %.2f batches/s train loss: %.4f val loss: %.4f" % (
                     i, n_updates, (i + 1) / took, train_loss, val_loss))
                 if not np.isfinite(val_loss):
                     raise ValueError("NaN loss")
