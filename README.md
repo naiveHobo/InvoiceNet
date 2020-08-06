@@ -159,7 +159,7 @@ This implementation is largely based on the work of R. Palm et al, who should be
 
 [1] Palm, Rasmus Berg, Florian Laws, and Ole Winther. **"Attend, Copy, Parse End-to-end information extraction from documents."** 2019 International Conference on Document Analysis and Recognition (ICDAR). IEEE, 2019.
 
-```
+```bibtex
 @inproceedings{palm2019attend,
   title={Attend, Copy, Parse End-to-end information extraction from documents},
   author={Palm, Rasmus Berg and Laws, Florian and Winther, Ole},
@@ -175,7 +175,7 @@ An implementation of an inferior (also slightly broken) invoice handling system 
 
 [2] Palm, Rasmus Berg, Ole Winther, and Florian Laws. **"Cloudscan - A configuration-free invoice analysis system using recurrent neural networks."** 2017 14th IAPR International Conference on Document Analysis and Recognition (ICDAR). Vol. 1. IEEE, 2017.
 
-```
+```bibtex
 @inproceedings{palm2017cloudscan,
   title={Cloudscan-a configuration-free invoice analysis system using recurrent neural networks},
   author={Palm, Rasmus Berg and Winther, Ole and Laws, Florian},
