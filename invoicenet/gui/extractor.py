@@ -1,3 +1,23 @@
+# Copyright (c) 2020 Sarthak Mittal
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import os
 import io
 import tempfile
@@ -227,11 +247,11 @@ class Extractor(Frame):
         button_frame.columnconfigure(2, weight=0)
         button_frame.columnconfigure(3, weight=1)
 
-        HoverButton(button_frame, image_path=r'widgets/begin.png', command=self._save_info, text='Save Information',
+        HoverButton(button_frame, image_path=r'widgets/labels.png', command=self._save_info, text='Save Information',
                     compound='center', font=("Arial", 10, "bold"), bd=0, bg=self.background,
                     highlightthickness=0, activebackground=self.background).grid(row=0, column=1, padx=10)
 
-        HoverButton(button_frame, image_path=r'widgets/begin.png', command=self._load_labels, text='Load Labels',
+        HoverButton(button_frame, image_path=r'widgets/labels.png', command=self._load_labels, text='Load Labels',
                     compound='center', font=("Arial", 10, "bold"), bd=0, bg=self.background,
                     highlightthickness=0, activebackground=self.background).grid(row=0, column=2, padx=10)
 
