@@ -18,48 +18,8 @@ def main():
                     help="path to save prepared data")
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
-    ap.add_argument("--prediction", action="store_false",
-                    help="prepare data for prediction")
 
     args = ap.parse_args()
-
-    if not args.prediction:
-        os.makedirs(os.path.join(args.out_dir, 'predict'), exist_ok=True)
-        filenames = [os.path.abspath(f) for f in glob.glob(args.data_dir + "**/*.pdf", recursive=True)]
-        print("Total: {}".format(len(filenames)))
-        for filename in tqdm(filenames):
-            try:
-                page = pdf2image.convert_from_path(filename)[0]
-                page.save(os.path.join(args.out_dir, "predict", os.path.basename(filename)[:-3] + 'png'))
-
-                height = page.size[1]
-                width = page.size[0]
-
-                ngrams = util.create_ngrams(page)
-                for ngram in ngrams:
-                    if "amount" in ngram["parses"]:
-                        ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
-                    if "date" in ngram["parses"]:
-                        ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
-
-                fields = {field: '0' for field in FIELDS}
-
-                data = {
-                    "fields": fields,
-                    "nGrams": ngrams,
-                    "height": height,
-                    "width": width,
-                    "filename": os.path.abspath(
-                        os.path.join(args.out_dir, 'predict', os.path.basename(filename)[:-3] + 'png'))
-                }
-
-                with open(os.path.join(args.out_dir, 'predict', os.path.basename(filename)[:-3] + 'json'), 'w') as fp:
-                    fp.write(simplejson.dumps(data, indent=2))
-
-            except Exception as exp:
-                print("Skipping {} : {}".format(filename, exp))
-                continue
-        return
 
     os.makedirs(os.path.join(args.out_dir, 'train'), exist_ok=True)
     os.makedirs(os.path.join(args.out_dir, 'val'), exist_ok=True)

@@ -1,9 +1,8 @@
 # InvoiceNet
 Deep neural network to extract intelligent information from PDF invoice documents.
 
-Trainer             |  Extractor
-:-------------------------:|:-------------------------:
-![Trainer](_images/trainer.png)  |  ![](_images/extractor.png)
+![InvoiceNet](_images/invoicenet.png)
+
 
 ## Installation
 To install InvoiceNet, run the following commands:
@@ -81,6 +80,9 @@ FIELDS["vendorname"] = FIELD_TYPES["general"]
 ## Using the GUI
 InvoiceNet provides you with a GUI to train a model on your data and extract information from invoice documents using this trained model
 
+![Trainer](_images/trainer.png)
+
+
 Run the following command to run the trainer GUI:
 
 ```
@@ -93,9 +95,9 @@ Run the following command to run the extractor GUI:
 python extractor.py
 ```
 
-You need to prepare the data for training and extraction first. 
-You can do so by setting the **Data Folder** field to the directory containing your training/prediction data and the clicking the **Prepare Data** button.
-Once the data is prepared, you can start training/prediction by clicking the **Start** button.
+You need to prepare the data for training first. 
+You can do so by setting the **Data Folder** field to the directory containing your training data and the clicking the **Prepare Data** button.
+Once the data is prepared, you can start training by clicking the **Start** button.
 
 
 ## Using the CLI
@@ -143,17 +145,12 @@ predict_data/
     ...
 ```
 
-Prepare the data for prediction first by running the following command:
-```
-python prepare_data.py --data_dir predict_data/ --prediction 
-```
-
 Run InvoiceNet using the following command:
 ```
-python predict.py --field enter-field-here
+python predict.py --field enter-field-here --data_dir predict_data/
 
 # For example, for field 'amounttotal'
-python predict.py --field amounttotal
+python predict.py --field amounttotal --data_dir predict_data/
 ```
 ---
 

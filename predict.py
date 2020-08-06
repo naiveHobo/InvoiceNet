@@ -1,39 +1,10 @@
 import os
+import glob
+import json
 import argparse
-import pdf2image
 
 from invoicenet import FIELDS
 from invoicenet.acp.acp import AttendCopyParse
-from invoicenet.acp.data import RealData
-from invoicenet.common import util
-
-
-def load_file(path):
-    image = pdf2image.convert_from_path(path)[0]
-    height = image.size[1]
-    width = image.size[0]
-
-    ngrams = util.create_ngrams(image)
-    for ngram in ngrams:
-        if "amount" in ngram["parses"]:
-            ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
-        if "date" in ngram["parses"]:
-            ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
-
-    fields = {field: '0' for field in FIELDS}
-
-    page = {
-        "fields": fields,
-        "nGrams": ngrams,
-        "height": height,
-        "width": width,
-        "filename": path
-    }
-
-    return {
-        'image': image,
-        'page': page
-    }
 
 
 def main():
@@ -50,18 +21,36 @@ def main():
 
     args = ap.parse_args()
 
+    paths = []
     if args.invoice:
         if not os.path.exists(args.invoice):
             print("Could not find file '{}'".format(args.invoice))
             return
-        data = load_file(args.invoice)
-        test_data = RealData(field=args.field, data_file=data)
+        paths.append(args.invoice)
     else:
-        test_data = RealData(field=args.field, data_dir=os.path.join(args.data_dir, 'predict/'))
+        paths = [os.path.abspath(f) for f in glob.glob(args.data_dir + "**/*.pdf", recursive=True)]
 
-    print("Extracting field '{}'...".format(args.field))
-    model = AttendCopyParse(field=args.field, test_data=test_data, batch_size=1, restore=True)
-    model.test_set(out_path=args.pred_dir)
+    model = AttendCopyParse(field=args.field, batch_size=1, restore=True)
+
+    print("\nExtracting field '{}' from {} invoices...\n".format(args.field, len(paths)))
+
+    predictions = model.predict(paths=paths)
+
+    os.makedirs(args.pred_dir, exist_ok=True)
+    for prediction, filename in zip(predictions, paths):
+        filename = os.path.basename(filename)[:-3] + 'json'
+        labels = {}
+        if os.path.exists(os.path.join(args.pred_dir, filename)):
+            with open(os.path.join(args.pred_dir, filename), 'r') as fp:
+                labels = json.load(fp)
+        with open(os.path.join(args.pred_dir, filename), 'w') as fp:
+            labels[args.field] = prediction
+            fp.write(json.dumps(labels))
+
+        print("\nFilename: {}".format(filename))
+        print("{}: {}\n".format(args.field, prediction))
+
+    print("Predictions stored in '{}'".format(args.pred_dir))
 
 
 if __name__ == '__main__':

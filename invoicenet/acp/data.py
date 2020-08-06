@@ -1,3 +1,4 @@
+import re
 import glob
 import hashlib
 import json
@@ -5,14 +6,15 @@ import random
 import string
 import time
 import logging
+import pdf2image
 
 import numpy as np
-import re
 import tensorflow as tf
 from PIL import Image
 from decimal import Decimal
 
 from .. import FIELDS, FIELD_TYPES
+from ..common import util
 
 from tensorflow.python.util import deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -84,12 +86,10 @@ class RealData(Data):
     n_memories = 4
     parses_idx = {'date': 0, 'amount': 1}
 
-    def __init__(self, field, data_dir=None, data_file=None):
+    def __init__(self, field, data_dir=None):
         self.logger = logging.getLogger("data")
         self.field = field
         self.filenames = []
-        self.data_file = data_file
-        self.filenames = [data_file['page']['filename']] if data_file else []
         if data_dir:
             self.filenames = glob.glob(data_dir + "**/*.json", recursive=True)
 
@@ -98,13 +98,13 @@ class RealData(Data):
             ((None, 5), tf.int64),  # i
             ((None,), tf.float32),  # v
             ((None,), tf.int64),  # s
-            (self.im_size + (3,), tf.float32),  # pixels
-            (self.im_size, tf.int32),  # word_indices
-            (self.im_size, tf.int32),  # pattern_indices
-            (self.im_size, tf.int32),  # char_indices
-            (self.im_size, tf.float32),  # memory_mask
-            (self.im_size + (4, 2), tf.float32),  # parses
-            ((self.seq_out[FIELDS[self.field]],), tf.int32)  # target
+            (RealData.im_size + (3,), tf.float32),  # pixels
+            (RealData.im_size, tf.int32),  # word_indices
+            (RealData.im_size, tf.int32),  # pattern_indices
+            (RealData.im_size, tf.int32),  # char_indices
+            (RealData.im_size, tf.float32),  # memory_mask
+            (RealData.im_size + (4, 2), tf.float32),  # parses
+            ((RealData.seq_out[FIELDS[self.field]],), tf.int32)  # target
         ))
 
     def _encode_ngrams(self, n_grams, height, width):
@@ -210,25 +210,6 @@ class RealData(Data):
 
         return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
 
-    def _load_single_document(self):
-        pixels = self.data_file['image']
-        pixels = pixels.convert('RGB').resize(self.im_size[::-1], Image.ANTIALIAS)
-        pixels = (np.asarray(pixels, np.float32) / 255. - 0.5) * 2.
-
-        page = self.data_file['page']
-        n_grams = page['nGrams']
-
-        word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams,
-                                                                                                        page['height'],
-                                                                                                        page['width'])
-
-        target = page['fields'][self.field]
-        if FIELDS[self.field] == FIELD_TYPES["amount"]:
-            target = self._preprocess_amount(target)
-        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
-
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
-
     def array_to_str(self, arr):
         """
         :param arr: (bs, seq) int32
@@ -245,11 +226,6 @@ class RealData(Data):
         return strs
 
     def sample_generator(self):
-        if self.data_file:
-            doc = self._load_single_document()
-            yield doc
-            return
-
         exceptions = 0
         np.random.seed(0)
         random.shuffle(self.filenames)
@@ -266,6 +242,62 @@ class RealData(Data):
             except:
                 self.logger.exception(doc_id + "%d/%d" % (exceptions, i))
                 exceptions += 1
+
+    def _process_pdf(self, path):
+        pixels = pdf2image.convert_from_path(path)[0]
+        height = pixels.size[1]
+        width = pixels.size[0]
+
+        ngrams = util.create_ngrams(pixels)
+        for ngram in ngrams:
+            if "amount" in ngram["parses"]:
+                ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
+            if "date" in ngram["parses"]:
+                ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
+
+        fields = {field: '0' for field in FIELDS}
+
+        page = {
+            "fields": fields,
+            "nGrams": ngrams,
+            "height": height,
+            "width": width,
+            "filename": path
+        }
+
+        pixels = pixels.convert('RGB').resize(self.im_size[::-1], Image.ANTIALIAS)
+        pixels = (np.asarray(pixels, np.float32) / 255. - 0.5) * 2.
+
+        n_grams = page['nGrams']
+
+        word_indices, pattern_indices, char_indices, memory_mask, parses, i, v, s = self._encode_ngrams(n_grams,
+                                                                                                        page['height'],
+                                                                                                        page['width'])
+
+        target = page['fields'][self.field]
+        if FIELDS[self.field] == FIELD_TYPES["amount"]:
+            target = self._preprocess_amount(target)
+        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
+
+        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
+
+    def generate_test_data(self, paths: list):
+        if not isinstance(paths, list):
+            raise Exception("This function assumes the input is a list of paths")
+
+        def _generator():
+            exceptions = 0
+            for idx, path in enumerate(paths):
+                try:
+                    doc = self._process_pdf(path)
+                    yield doc
+                except GeneratorExit:
+                    return
+                except:
+                    self.logger.exception(path + " %d/%d" % (exceptions, idx))
+                    exceptions += 1
+
+        return _generator
 
     def _encode_sequence(self, value, max_len):
         encoded = [self.output_dict[c] for c in list(value)[:max_len - 1]] + [self.eos_idx]

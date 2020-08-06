@@ -6,14 +6,16 @@ import pdf2image
 import simplejson
 import numpy as np
 from tqdm import tqdm
+from tkinter import *
 from tkinter import filedialog, messagebox
 from tkinter.ttk import Progressbar
+from PIL import Image, ImageTk
 
 from .. import FIELDS, FIELD_TYPES
 from ..common import util
 from ..acp.acp import AttendCopyParse
 from ..acp.data import RealData
-from .custom_widgets import *
+from .custom_widgets import HoverButton, Logger, StoppableThread
 
 
 class Trainer(Frame):
@@ -111,7 +113,7 @@ class Trainer(Frame):
 
         Label(df, text="Data Folder:", bg=self.background,
               fg="white", font=("Arial", 8, "bold"), anchor='w').pack(side=LEFT, fill=BOTH)
-        HoverButton(df, image_path=r'widgets/open_dir.png', command=lambda: self._open_dir("data_dir"),
+        HoverButton(df, image_path=r'widgets/open_dir_small.png', command=lambda: self._open_dir("data_dir"),
                     width=18, height=18, bg=self.background, bd=0,
                     highlightthickness=0, activebackground='#558de8').pack(side=RIGHT)
 
@@ -125,7 +127,7 @@ class Trainer(Frame):
 
         Label(of, text="Processed Data Folder:", bg=self.background,
               anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=LEFT, fill=BOTH)
-        HoverButton(of, image_path=r'widgets/open_dir.png', command=lambda: self._open_dir("prepared_data"),
+        HoverButton(of, image_path=r'widgets/open_dir_small.png', command=lambda: self._open_dir("prepared_data"),
                     width=18, height=18, bg=self.background, bd=0,
                     highlightthickness=0, activebackground='#558de8').pack(side=RIGHT)
 
@@ -192,7 +194,7 @@ class Trainer(Frame):
         self.stop_button.grid(row=0, column=1)
         self.stop_button.grid_forget()
 
-        self.logger = Logger(main_frame, bg=self.background, bd=0, relief=SUNKEN)
+        self.logger = Logger(main_frame, height=18, bg=self.background, bd=0, relief=SUNKEN)
         self.logger.grid(row=1, column=0, sticky='news')
 
     def _train(self):

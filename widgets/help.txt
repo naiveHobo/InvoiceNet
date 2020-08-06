@@ -1,0 +1,103 @@
+Welcome to InvoiceNet help!
+
+InvoiceNet is a deep neural network to extract intelligent information from invoice documents.
+
+InvoiceNet has a lot to offer. Here is a small description of some of the tools you will have to your disposal.
+
+---
+
+Open Files:
+
+The 'Open Files' function allows you to open one or multiple files into InvoiceNet.
+
+On clicking the button, you're prompted with a dialog box where you can select all the files (PDF, PNG, JPG) you want to open. Once you're done, you can cycle through each document in the list and extract information from each document.
+
+PDF files are opened directly into the viewer. However, when an image file is opened, Google's OCR, Tesseract, is ran on the image in order to extract readable text.
+
+---
+
+Open Directory:
+
+The 'Open Directory' function works in the same way as the 'Open Files' function, but it allows you to open all files inside a particular directory in a single shot.
+
+---
+
+Clear Page:
+
+The 'Clear Page' option lets you clear any modification you made to the current page.
+
+---
+
+Search Text:
+
+The 'Search Text' option allows you to search for text in the current page.
+
+On clicking the button, you are prompted to enter the text you want to search. InvoiceNet then searches the entire page and marks any word that contains the text you searched for.
+
+If text search fails, it's possible that there is no extractable text in your invoice. In this case, try again after running the OCR on the selected invoice.
+
+---
+
+Extract Text:
+
+The 'Extract Text' option allows you to draw a bounding box on the current page and get the text that you marked with the bounding box.
+
+On clicking the button, the viewer becomes drawable. You're expected to draw a bounding box around the text you want to extract from the page. Once done, click on the 'Extract Text' button again.
+
+On doing so, you will be prompted with the word that's closest to the bounding box you drew.
+
+If text extraction fails, it's possible that there is no extractable text in your invoice. In this case, try again after running the OCR on the selected invoice.
+
+---
+
+Run OCR:
+
+The 'Run OCR' option allows you to run Google's Optical Character Reading (OCR) model, Tesseract, on the current invoice.
+
+This comes in handy when an image file is opened using InvoiceNet.
+
+Another scenario where you may have to use the OCR is when a PDF document contains embedded images and you need to extract text from the embedded images.
+
+---
+
+Clear Invoice Queue:
+
+This option can be used to clear the list of invoices that have been loaded into InvoiceNet.
+
+---
+
+Next/Previous File:
+
+The 'Next File' and 'Previous File' options allow you to cycle through the list of files that were opened using InvoiceNet.
+
+---
+
+Viewer:
+
+The Page Tool Bar gives you functions to manipulate your documents.
+- Use the 'Next Page' and 'Previous Page' buttons to cycle through the different pages in your invoice.
+- Use the 'Last Page' and 'First Page' buttons to directly go to the pages on the extreme ends.
+- Use the 'Zoom In', 'Zoom Out' and 'Fit-To-Screen' buttons to make the current page bigger or smaller.
+- Use the 'Rotate' button to rotate pages.
+
+---
+
+Extract:
+
+Before extracting information from an invoice, you need to select the fields that should be extracted. The field checkboxes become active automatically if InvoiceNet is able to find a trained model for a field.
+
+After selecting the fields to be extracted, click on the 'Extract' button and InvoiceNet will try to extract those fields from the current invoice and display the extracted information in the logging space.
+
+---
+
+Save Information:
+
+After information extraction, the logging space will show you the extracted fields in the form of a python dictionary. You can edit the extracted fields here if there are any discrepancies.
+
+Once you are done, click on the 'Save Information' button and InvoiceNet will save your extracted information as a JSON file.
+
+---
+
+Load Labels:
+
+The 'Load Labels' button can be used to upload labels from an existing JSON file into the logging space.

@@ -69,7 +69,8 @@ class TextParser:
     def __init__(self):
         self.template = dict()
         self.template['amount'] = [r'[1-9]\d{0,2}(?:,\d{2,3})*(?:\.\d+)', r'[1-9]\d*(?:\.\d+)']
-        self.template['date'] = [r'\d{1,2}[\/\\\.-]\d{1,2}[\/\\\.-]\d{2,4}', r'\d{2,4}[\/\\\.-]\d{1,2}[\/\\\.-]\d{1,2}']
+        self.template['date'] = [r'\d{1,2}[\/\\\.\,-]\d{1,2}[\/\\\.\,-]\d{2,4}',
+                                 r'\d{2,4}[\/\\\.\,-]\d{1,2}[\/\\\.\,-]\d{1,2}']
 
     def parse(self, text, key):
         if key == 'date':

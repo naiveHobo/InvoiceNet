@@ -1,5 +1,4 @@
 import os
-import json
 
 import tensorflow as tf
 from tensorflow.python.util import deprecation
@@ -24,7 +23,7 @@ class AttendCopyParse(Model):
     lr = 3e-4
     keep_prob = 0.5
 
-    def __init__(self, field, train_data=None, val_data=None, test_data=None, batch_size=8, restore=False):
+    def __init__(self, field, train_data=None, val_data=None, batch_size=8, restore=False):
         tf.reset_default_graph()
 
         self.field = field
@@ -55,15 +54,11 @@ class AttendCopyParse(Model):
             self.valid_iterator = self.iterator(valid)
             self.next_valid_batch = self.valid_iterator.get_next()
 
-        if test_data:
-            self.test = test_data
-            self.test_iterator = self.iterator(self.test, n_repeat=1)
-            self.next_test_batch = self.test_iterator.get_next()
-
         self.regularizer = layers.l2_regularizer(1e-4)
 
         print("Building graph...")
         config = tf.ConfigProto(allow_soft_placement=False)
+        config.gpu_options.allow_growth = True
         self.session = tf.Session(config=config)
 
         # Placeholders
@@ -231,14 +226,14 @@ class AttendCopyParse(Model):
 
             return {'cross_entropy': label_cross_entropy, 'actual': chars, 'targets': targets, 'correct': correct}
 
-    def iterator(self, data, n_repeat=-1):
+    def iterator(self, data):
         shapes, types = data.shapes_types()
         ds = tf.data.Dataset.from_generator(
             data.sample_generator,
             types,
             shapes
         ).map(lambda i, v, s, *args: (tf.SparseTensor(i, v, s),) + args) \
-            .repeat(n_repeat) \
+            .repeat(-1) \
             .apply(tf.contrib.data.batch_and_drop_remainder(self.batch_size)) \
             .prefetch(2)
         return ds.make_one_shot_iterator()
@@ -256,32 +251,30 @@ class AttendCopyParse(Model):
         loss, outputs, step = self.session.run([self.loss, self.outputs, self.global_step], placeholders)
         return loss
 
-    def test_set(self, out_path="./predictions/"):
-        actuals = []
+    def predict(self, paths):
+        data = RealData(field=self.field)
+        shapes, types = data.shapes_types()
+        ds = tf.data.Dataset.from_generator(
+            data.generate_test_data(paths),
+            types,
+            shapes
+        ).map(lambda i, v, s, *args: (tf.SparseTensor(i, v, s),) + args) \
+            .repeat(1) \
+            .apply(tf.contrib.data.batch_and_drop_remainder(1))
+        iterator = ds.make_one_shot_iterator()
+        next_test_batch = iterator.get_next()
+
+        predictions = []
         while True:
             try:
-                batch = self.session.run(self.next_test_batch)
+                batch = self.session.run(next_test_batch)
                 placeholders = self.get_placeholders(batch, False)
                 output = self.session.run(self.outputs, placeholders)
-                actuals.extend(self.test.array_to_str(output[self.field]['actual']))
+                predictions.extend(data.array_to_str(output[self.field]['actual']))
             except tf.errors.OutOfRangeError:
                 break
-        os.makedirs(out_path, exist_ok=True)
-        extracts = {}
-        for actual, filename in zip(actuals, self.test.filenames):
-            filename = '.'.join([os.path.basename(filename).split('.')[0], 'pdf'])
-            print("Prediciton: {}\t\tFilename: {}".format(actual, filename))
-            filename = filename[:-3] + 'json'
-            predictions = {}
-            if os.path.exists(os.path.join(out_path, filename)):
-                with open(os.path.join(out_path, filename), 'r') as fp:
-                    predictions = json.load(fp)
-            with open(os.path.join(out_path, filename), 'w') as fp:
-                predictions[self.field] = actual
-                fp.write(json.dumps(predictions))
-            extracts[filename] = predictions
-        print("Predictions stored in '{}'".format(out_path))
-        return extracts
+
+        return predictions
 
     def save(self, name):
         self.saver.save(self.session, "./models/invoicenet/%s/%s" % (self.field, name))
