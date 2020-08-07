@@ -108,7 +108,7 @@ class PDFViewer(Frame):
                     highlightthickness=0, activebackground=self.highlight).pack(side=RIGHT, expand=True)
 
     def reset(self):
-        self.canvas.clear()
+        self.canvas.reset()
         self.pdf = None
         self.page = None
         self.total_pages = 0
@@ -269,5 +269,5 @@ class PDFViewer(Frame):
     def clear(self):
         if self.pdf is None:
             return
-        self.canvas.reset()
+        self.canvas.clear()
         self._update_page()

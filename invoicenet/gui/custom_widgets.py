@@ -114,13 +114,11 @@ class MenuBox(Frame):
 
 class HoverButton(Button):
 
-    def __init__(self, master, tool_tip=None, image_path=None, keep_pressed=False, **kw):
+    def __init__(self, master, tool_tip=None, image_path=None, **kw):
         Button.__init__(self, master=master, **kw)
         self.defaultBackground = self["background"]
         self.bind("<Enter>", self.on_enter)
         self.bind("<Leave>", self.on_leave)
-        if keep_pressed:
-            self.bind("<Button-1>", self.on_click)
         if image_path:
             self.image = ImageTk.PhotoImage(Image.open(image_path))
             self.configure(image=self.image)
@@ -238,7 +236,7 @@ class DisplayCanvas(Frame):
         self.canvas.xview_moveto(0.0)
         self.canvas.yview_moveto(0.0)
 
-    def reset(self):
+    def clear(self):
         self.canvas.delete("all")
         self.image_obj = self.canvas.create_image(1, 1, image=self.image, anchor=CENTER)
         self.sbarv.config(command=self.canvas.yview)
@@ -248,15 +246,20 @@ class DisplayCanvas(Frame):
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
         self.rect = None
 
-    def clear(self):
+    def reset(self):
         self.canvas.delete("all")
+        self.rect = None
+        self.image = None
         self.image_obj = None
+        self.pil_image = None
+        self.draw = False
+        self.configure(cursor='')
 
     def get_rect(self):
         w, h = self.pil_image.size
         x0, y0 = self.canvas.coords(self.image_obj)
-        minx = x0 - w/2.0
-        miny = y0 - h/2.0
+        minx = x0 - w / 2.0
+        miny = y0 - h / 2.0
         if self.rect:
             rect = self.canvas.coords(self.rect)
             rect = [rect[0] + abs(minx), rect[1] + abs(miny), rect[2] + abs(minx), rect[3] + abs(miny)]
