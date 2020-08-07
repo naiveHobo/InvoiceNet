@@ -158,7 +158,7 @@ class Trainer(Frame):
         Label(field_param, text="Field:", bg=self.background,
               anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=BOTH)
         self.field_text = StringVar(field_param)
-        self.field_text.set("invoicenumber")
+        self.field_text.set(list(FIELDS.keys())[0])
 
         keys = list(FIELDS.keys())
         field_list = OptionMenu(field_param, self.field_text, *keys)

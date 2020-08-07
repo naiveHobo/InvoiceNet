@@ -24,9 +24,11 @@ from tqdm import tqdm
 
 
 def main():
-    train_numbers = random.sample(range(0, 10000), 5000)
-    train_numbers += random.sample(range(0, 100000), 5000)
-    train_numbers += random.sample(range(0, 1000000), 5000)
+    train_numbers = random.sample(range(1000, 10000), 5000)
+    train_numbers += random.sample(range(1000, 10000), 5000)
+    train_numbers += random.sample(range(1000, 10000), 5000)
+    train_numbers += random.sample(range(10000, 100000), 5000)
+    train_numbers += random.sample(range(100000, 1000000), 5000)
     for idx in range(1, 16):
         train_numbers += random.sample(range(0, 1000), 1000)
 

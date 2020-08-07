@@ -110,7 +110,6 @@ class ParseData(Data):
     def _encode_str(self, field, max_length):
         encoded = [self.output_dict[c] for c in list(field)[:max_length - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_length - len(encoded))
-
         return encoded
 
 

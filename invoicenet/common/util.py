@@ -89,7 +89,7 @@ class TextParser:
 
     def __init__(self):
         self.template = dict()
-        self.template['amount'] = [r'[1-9]\d{0,2}(?:,\d{2,3})*(?:\.\d+)', r'[1-9]\d*(?:\.\d+)']
+        self.template['amount'] = [r'\d+[,\d]*\.\d+']
         self.template['date'] = [r'\d{1,2}[\/\\\.\,-]\d{1,2}[\/\\\.\,-]\d{2,4}',
                                  r'\d{2,4}[\/\\\.\,-]\d{1,2}[\/\\\.\,-]\d{1,2}']
 
@@ -101,7 +101,7 @@ class TextParser:
                     return True
                 else:
                     return False
-            except Exception as exp:
+            except Exception:
                 return False
         if key not in self.template:
             return False
@@ -118,7 +118,7 @@ class TextParser:
                     return [match.strftime('%m-%d-%Y') for match in matches]
                 else:
                     return []
-            except Exception as exp:
+            except Exception:
                 return []
         values = []
         if key not in self.template:
@@ -185,10 +185,10 @@ def create_ngrams(img, length=4):
             "words": token,
             "parses": {}
         }
-        if parser.parse(text=text, key='amount'):
-            ngram["parses"]["amount"] = parser.find(text=text, key='amount')[0]
         if parser.parse(text=text, key='date'):
             ngram["parses"]["date"] = parser.find(text=text, key='date')[0]
+        elif parser.parse(text=text, key='amount'):
+            ngram["parses"]["amount"] = parser.find(text=text, key='amount')[0]
         ngrams.append(ngram)
 
     return ngrams
