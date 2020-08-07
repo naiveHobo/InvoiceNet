@@ -93,11 +93,12 @@ class Extractor(Frame):
 
         options.add_item('Open Files...', self._open_file)
         options.add_item('Open Directory...', self._open_dir, seperator=True)
+        options.add_item('Set Save Directory...', self._set_save_path, seperator=True)
         options.add_item('Next File', self._next_file)
         options.add_item('Previous File', self._prev_file, seperator=True)
         options.add_item('Clear Page', self.viewer.clear)
         options.add_item('Search Text', self.viewer.search_text)
-        options.add_item('Run OCR', self._run_ocr)
+        options.add_item('Run OCR', self._run_ocr, seperator=True)
         options.add_item('Clear Invoice Queue', self._clear_queue, seperator=True)
         options.add_item('Help...', self._help, seperator=True)
         options.add_item('Exit', self.master.quit)
@@ -110,6 +111,9 @@ class Extractor(Frame):
                     highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
         HoverButton(tools, image_path=r'widgets/open_dir.png', command=self._open_dir,
                     width=50, height=50, bg=self.background, bd=0, tool_tip="Open Directory",
+                    highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
+        HoverButton(tools, image_path=r'widgets/save_as.png', command=self._set_save_path,
+                    width=50, height=50, bg=self.background, bd=0, tool_tip="Set Save Directory",
                     highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
         HoverButton(tools, image_path=r'widgets/clear_page.png', command=self.viewer.clear,
                     width=50, height=50, bg=self.background, bd=0, tool_tip="Clear Page",
@@ -315,8 +319,6 @@ class Extractor(Frame):
         if label_file is None:
             return
 
-        self.save_dir = os.path.dirname(label_file.name)
-
         try:
             labels = simplejson.load(label_file)
         except simplejson.errors.JSONDecodeError:
@@ -353,21 +355,14 @@ class Extractor(Frame):
             messagebox.showerror("Error", "Could not parse a valid dictionary!")
             return
 
-        path = filedialog.asksaveasfilename(title='Save information as', defaultextension='.json',
-                                            initialdir=self.save_dir,
-                                            initialfile=os.path.splitext(os.path.basename(self.paths[self.pathidx]))[0],
-                                            filetypes=[('JSON files', '*.json'), ('all files', '.*')])
-
-        if path == '' or path is None:
-            return
-
-        self.save_dir = os.path.dirname(path)
+        path = os.path.join(self.save_dir, os.path.splitext(os.path.basename(self.paths[self.pathidx]))[0] + '.json')
 
         labels = {}
         if os.path.exists(path):
             with open(path, encoding="utf8") as fp:
                 try:
                     labels = simplejson.load(fp)
+                    self.logger.log("\n'{}' already exists, adding updated labels to this file".format(path))
                 except simplejson.errors.JSONDecodeError:
                     pass
 
@@ -382,6 +377,16 @@ class Extractor(Frame):
             return
 
         self.logger.log("\nWrote information to '{}'".format(path))
+
+    def _set_save_path(self):
+        path = filedialog.askdirectory(title='Set Save Directory', initialdir=self.save_dir)
+        if path == '' or not path:
+            return
+        if not os.path.exists(path):
+            messagebox.showerror("Error", "Invalid directory!")
+            return
+        self.save_dir = path
+        self.logger.log("Information will now be saved in '{}'".format(self.save_dir))
 
     def _next_file(self):
         if self.pathidx == len(self.paths) - 1:

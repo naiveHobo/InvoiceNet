@@ -22,6 +22,12 @@ The 'Open Directory' function works in the same way as the 'Open Files' function
 
 ---
 
+Set Save Directory:
+
+The 'Set Save Directory' function allows you to set the directory where extracted information will be saved when 'Save Information' button is clicked.
+
+---
+
 Clear Page:
 
 The 'Clear Page' option lets you clear any modification you made to the current page.
@@ -94,7 +100,7 @@ Save Information:
 
 After information extraction, the logging space will show you the extracted fields in the form of a python dictionary. You can edit the extracted fields here if there are any discrepancies.
 
-Once you are done, click on the 'Save Information' button and InvoiceNet will save your extracted information as a JSON file.
+Once you are done, click on the 'Save Information' button and InvoiceNet will save your extracted information as a JSON file. If a JSON file with the same name already exists, the newly extracted fields will be added to this file.
 
 ---
 
