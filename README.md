@@ -69,7 +69,7 @@ train_data/
 ```
 
 The JSON labels should have the following format:
-```json
+```
 {
  "vendorname":"Nike",
  "invoicedate":"12-01-2017",
