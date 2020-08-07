@@ -4,6 +4,20 @@ Deep neural network to extract intelligent information from PDF invoice document
 ![InvoiceNet](_images/invoicenet.png)
 
 
+---
+**DISCLAIMER**: 
+
+Pre-trained models for some general invoice fields are not available right now but will soon be provided.
+The training GUI and data preparation scripts have been made available.
+
+Invoice documents contain sensitive information because of which collecting a sizable dataset has proven to be difficult.
+This makes it difficult for developers like us to train large-scale generalised models and make them available to the community.
+
+If you have a dataset of invoice documents that you are comfortable sharing with us, please reach out (<sarthakmittal2608@gmail.com>).
+We have the tools to create the first publicly-available large-scale invoice dataset along with a software platform for structured information extraction.
+
+---
+
 ## Installation
 
 #### Ubuntu 18.04
