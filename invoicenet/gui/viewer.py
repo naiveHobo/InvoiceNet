@@ -54,7 +54,7 @@ class PDFViewer(Frame):
         page_tools.grid(row=0, column=0, sticky='news')
 
         # Display Canvas
-        self.canvas = DisplayCanvas(canvas_frame)
+        self.canvas = DisplayCanvas(canvas_frame, cursor='cross')
         self.canvas.pack(fill=BOTH, expand=True)
 
         # Page Tools
@@ -234,12 +234,6 @@ class PDFViewer(Frame):
     def extract_text(self):
         if self.pdf is None:
             return
-        if not self.canvas.draw:
-            self.canvas.draw = True
-            self.canvas.configure(cursor='cross')
-            return
-        self.canvas.draw = False
-        self.canvas.configure(cursor='')
         rect = self.canvas.get_rect()
         if rect is None:
             return

@@ -98,7 +98,7 @@ class Extractor(Frame):
         options.add_item('Previous File', self._prev_file, seperator=True)
         options.add_item('Clear Page', self.viewer.clear)
         options.add_item('Search Text', self.viewer.search_text)
-        options.add_item('Extract Text', self._extract_text)
+        options.add_item('Extract Text', self.viewer.extract_text)
         options.add_item('Run OCR', self._run_ocr, seperator=True)
         options.add_item('Clear Invoice Queue', self._clear_queue, seperator=True)
         options.add_item('Help...', self._help, seperator=True)
@@ -122,12 +122,9 @@ class Extractor(Frame):
         HoverButton(tools, image_path=r'widgets/search.png', command=self.viewer.search_text,
                     width=50, height=50, bg=self.background, bd=0, tool_tip="Search Text",
                     highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
-
-        self._extract_button = HoverButton(tools, image_path=r'widgets/extract.png', command=self._extract_text,
-                                           width=50, height=50, bg=self.background, bd=0, tool_tip="Extract Text",
-                                           highlightthickness=0, activebackground=self.highlight_color)
-        self._extract_button.pack(pady=2)
-
+        HoverButton(tools, image_path=r'widgets/extract.png', command=self.viewer.extract_text,
+                    width=50, height=50, bg=self.background, bd=0, tool_tip="Extract Text",
+                    highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
         HoverButton(tools, image_path=r'widgets/ocr.png', command=self._run_ocr,
                     width=50, height=50, bg=self.background, bd=0, tool_tip="Run OCR",
                     highlightthickness=0, activebackground=self.highlight_color).pack(pady=2)
@@ -404,15 +401,6 @@ class Extractor(Frame):
         self.pathidx -= 1
         self._load_file()
 
-    def _extract_text(self):
-        if self.pdf is None:
-            return
-        if self._extract_button['background'] == self._extract_button.defaultBackground:
-            self._extract_button['background'] = self._extract_button['activebackground']
-        else:
-            self._extract_button['background'] = self._extract_button.defaultBackground
-        self.viewer.extract_text()
-
     def _run_ocr(self):
         if self.pdf is None:
             return
@@ -488,7 +476,6 @@ class Extractor(Frame):
         self.doc_label.configure(text="{} of {}".format(self.pathidx + 1, len(self.paths)))
         self.thread = None
         self.running = False
-        self._extract_button['background'] = self._extract_button.defaultBackground
 
     def _help(self):
         ws = self.master.winfo_screenwidth()

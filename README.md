@@ -85,10 +85,10 @@ train_data/
 The JSON labels should have the following format:
 ```
 {
- "vendorname":"Nike",
- "invoicedate":"12-01-2017",
- "invoicenumber":"R0007546449",
- "amounttotal":"137.51",
+ "vendor_name":"Nike",
+ "invoice_date":"12-01-2017",
+ "invoice_number":"R0007546449",
+ "total_amount":"137.51",
  ... other fields
 }
 ```
@@ -110,17 +110,17 @@ Choose the appropriate field type for the field and add the line mentioned below
 ```python
 # Add the following line at the end of the file
 
-# For example, to add a field totalamount
-FIELDS["totalamount"] = FIELD_TYPES["amount"]
+# For example, to add a field total_amount
+FIELDS["total_amount"] = FIELD_TYPES["amount"]
 
-# For example, to add a field invoicedate
-FIELDS["invoicedate"] = FIELD_TYPES["date"]
+# For example, to add a field invoice_date
+FIELDS["invoice_date"] = FIELD_TYPES["date"]
 
-# For example, to add a field taxid (which might be optional)
-FIELDS["taxid"] = FIELD_TYPES["optional"]
+# For example, to add a field tax_id (which might be optional)
+FIELDS["tax_id"] = FIELD_TYPES["optional"]
 
-# For example, to add a field vendorname
-FIELDS["vendorname"] = FIELD_TYPES["general"]
+# For example, to add a field vendor_name
+FIELDS["vendor_name"] = FIELD_TYPES["general"]
 ```
 
 
@@ -160,8 +160,8 @@ Train InvoiceNet using the following command:
 ```bash
 python train.py --field enter-field-here --batch_size 8
 
-# For example, for field 'amounttotal'
-python train.py --field amounttotal --batch_size 8
+# For example, for field 'total_amount'
+python train.py --field total_amount --batch_size 8
 ```
 
 ---
@@ -176,8 +176,8 @@ To extract a field from a single invoice file, run the following command:
 ```bash
 python predict.py --field enter-field-here --invoice path-to-invoice-file
 
-# For example, to extract field totalamount from an invoice file invoices/1.pdf
-python predict.py --field totalamount --invoice invoices/1.pdf
+# For example, to extract field total_amount from an invoice file invoices/1.pdf
+python predict.py --field total_amount --invoice invoices/1.pdf
 ```
 
 ---
@@ -196,8 +196,8 @@ Run InvoiceNet using the following command:
 ```bash
 python predict.py --field enter-field-here --data_dir predict_data/
 
-# For example, for field 'amounttotal'
-python predict.py --field amounttotal --data_dir predict_data/
+# For example, for field 'total_amount'
+python predict.py --field total_amount --data_dir predict_data/
 ```
 ---
 

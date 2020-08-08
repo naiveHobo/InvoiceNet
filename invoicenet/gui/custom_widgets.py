@@ -224,6 +224,7 @@ class DisplayCanvas(Frame):
         pass
 
     def update_image(self, image):
+        self.draw = True
         self.pil_image = image
         self.image = ImageTk.PhotoImage(image)
         if self.image_obj is None:
@@ -253,7 +254,6 @@ class DisplayCanvas(Frame):
         self.image_obj = None
         self.pil_image = None
         self.draw = False
-        self.configure(cursor='')
 
     def get_rect(self):
         w, h = self.pil_image.size
