@@ -221,8 +221,16 @@ class Trainer(Frame):
         train_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'train/'))
         val_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'val/'))
 
+        restore = None
+        if os.path.exists(os.path.join('./models/invoicenet/', self.args["field"])):
+            restore = messagebox.askyesno(
+                title="Restore",
+                message="A checkpoint was found! Do you want to restore checkpoint for training?")
+
+        restore = True if restore else False
+
         model = AttendCopyParse(field=self.args["field"], train_data=train_data, val_data=val_data,
-                                batch_size=self.args["batch_size"], restore=False)
+                                batch_size=self.args["batch_size"], restore=restore)
 
         n_updates = 50000
         print_interval = 20
