@@ -25,8 +25,6 @@ import hashlib
 import json
 import random
 import string
-import time
-import logging
 import pdf2image
 
 import numpy as np
@@ -36,52 +34,12 @@ from decimal import Decimal
 
 from .. import FIELDS, FIELD_TYPES
 from ..common import util
-
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+from ..common.data import Data, UnkDict
 
 random.seed(0)
 
 
-class Data:
-    def sample_generator(self):
-        raise NotImplementedError
-
-    def types(self):
-        raise NotImplementedError
-
-    def shapes(self):
-        raise NotImplementedError
-
-    def array_to_str(self, arr):
-        raise NotImplementedError
-
-
-class UnkDict:
-    unk = '<UNK>'
-
-    def __init__(self, items):
-        if self.unk not in items:
-            raise ValueError("items must contain %s", self.unk)
-
-        self.delegate = dict([(c, i) for i, c in enumerate(items)])
-        self.rdict = {i: c for c, i in self.delegate.items()}
-
-    def __getitem__(self, item):
-        if item in self.delegate:
-            return self.delegate[item]
-        else:
-            return self.delegate[self.unk]
-
-    def __len__(self):
-        return len(self.delegate)
-
-    def idx2key(self, idx):
-        return self.rdict[idx]
-
-
-class RealData(Data):
+class InvoiceData(Data):
 
     im_size = 128, 128
     chars = ['<PAD>', '<EOS>', '<UNK>'] + list(string.printable)
@@ -108,25 +66,38 @@ class RealData(Data):
     parses_idx = {'date': 0, 'amount': 1}
 
     def __init__(self, field, data_dir=None):
-        self.logger = logging.getLogger("data")
         self.field = field
         self.filenames = []
         if data_dir:
             self.filenames = glob.glob(data_dir + "**/*.json", recursive=True)
 
-    def shapes_types(self):
-        return zip(*(
-            ((None, 5), tf.int64),  # i
-            ((None,), tf.float32),  # v
-            ((None,), tf.int64),  # s
-            (RealData.im_size + (3,), tf.float32),  # pixels
-            (RealData.im_size, tf.int32),  # word_indices
-            (RealData.im_size, tf.int32),  # pattern_indices
-            (RealData.im_size, tf.int32),  # char_indices
-            (RealData.im_size, tf.float32),  # memory_mask
-            (RealData.im_size + (4, 2), tf.float32),  # parses
-            ((RealData.seq_out[FIELDS[self.field]],), tf.int32)  # target
-        ))
+    def types(self):
+        return (
+            tf.int64,  # i
+            tf.float32,  # v
+            tf.int64,  # s
+            tf.float32,  # pixels
+            tf.int32,  # word_indices
+            tf.int32,  # pattern_indices
+            tf.int32,  # char_indices
+            tf.float32,  # memory_mask
+            tf.float32,  # parses
+            tf.int32  # target
+        )
+
+    def shapes(self):
+        return (
+            (None, 5),  # i
+            (None,),  # v
+            (None,),  # s
+            InvoiceData.im_size + (3,),  # pixels
+            InvoiceData.im_size,  # word_indices
+            InvoiceData.im_size,  # pattern_indices
+            InvoiceData.im_size,  # char_indices
+            InvoiceData.im_size,  # memory_mask
+            InvoiceData.im_size + (4, 2),  # parses
+            (InvoiceData.seq_out[FIELDS[self.field]],)  # target
+        )
 
     def _encode_ngrams(self, n_grams, height, width):
         v_ar = self.im_size[0] / height
@@ -184,7 +155,16 @@ class RealData(Data):
         memory_values = [1.] * len(memory_indices)
         memory_dense_shape = self.im_size + (self.n_memories, self.seq_in, self.n_output)
 
-        return word_indices, pattern_indices, char_indices, memory_mask, parses, memory_indices, memory_values, memory_dense_shape
+        return (
+            word_indices,
+            pattern_indices,
+            char_indices,
+            memory_mask,
+            parses,
+            memory_indices,
+            memory_values,
+            memory_dense_shape
+        )
 
     def append_indices(self, top, bottom, left, right, m_idx, char_idx, char_pos, indices):
         assert 0 <= m_idx < self.n_memories, m_idx
@@ -251,17 +231,13 @@ class RealData(Data):
         np.random.seed(0)
         random.shuffle(self.filenames)
 
-        spent_loading = 0
         for i, doc_id in enumerate(self.filenames):
             try:
-                start = time.perf_counter()
-                doc = self._load_document(doc_id.strip())
-                spent_loading += (time.perf_counter() - start)
-                yield doc
+                yield self._load_document(doc_id.strip())
             except GeneratorExit:
                 return
             except:
-                self.logger.exception(doc_id + "%d/%d" % (exceptions, i))
+                print(doc_id + "%d/%d" % (exceptions, i))
                 exceptions += 1
 
     def _process_pdf(self, path):
@@ -310,12 +286,9 @@ class RealData(Data):
             exceptions = 0
             for idx, path in enumerate(paths):
                 try:
-                    doc = self._process_pdf(path)
-                    yield doc
-                except GeneratorExit:
-                    return
+                    yield self._process_pdf(path)
                 except:
-                    self.logger.exception(path + " %d/%d" % (exceptions, idx))
+                    print(path + " %d/%d" % (exceptions, idx))
                     exceptions += 1
 
         return _generator
@@ -324,3 +297,20 @@ class RealData(Data):
         encoded = [self.output_dict[c] for c in list(value)[:max_len - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_len - len(encoded))
         return encoded
+
+    @staticmethod
+    def create_dataset(data_dir, field, batch_size):
+        data = InvoiceData(field=field, data_dir=data_dir)
+        shapes, types = data.shapes(), data.types()
+
+        def _transform(i, v, s, *args):
+            return (tf.SparseTensor(i, v, s),) + args
+
+        return tf.data.Dataset.from_generator(
+            data.sample_generator,
+            types,
+            shapes
+        ).map(_transform) \
+            .repeat(-1) \
+            .batch(batch_size=batch_size, drop_remainder=True) \
+            .prefetch(2)

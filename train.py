@@ -24,7 +24,7 @@ import argparse
 from invoicenet import FIELDS
 from invoicenet.common import trainer
 from invoicenet.acp.acp import AttendCopyParse
-from invoicenet.acp.data import RealData
+from invoicenet.acp.data import InvoiceData
 
 
 def main():
@@ -41,12 +41,19 @@ def main():
 
     args = ap.parse_args()
 
-    train_data = RealData(field=args.field, data_dir=os.path.join(args.data_dir, 'train/'))
-    val_data = RealData(field=args.field, data_dir=os.path.join(args.data_dir, 'val/'))
+    train_data = InvoiceData.create_dataset(field=args.field,
+                                            data_dir=os.path.join(args.data_dir, 'train/'),
+                                            batch_size=args.batch_size)
+    val_data = InvoiceData.create_dataset(field=args.field,
+                                          data_dir=os.path.join(args.data_dir, 'val/'),
+                                          batch_size=args.batch_size)
 
     print("Training...")
-    trainer.train(AttendCopyParse(field=args.field, batch_size=args.batch_size, restore=args.restore,
-                                  train_data=train_data, val_data=val_data))
+    trainer.train(
+        model=AttendCopyParse(field=args.field, restore=args.restore),
+        train_data=train_data,
+        val_data=val_data
+    )
 
 
 if __name__ == '__main__':

@@ -34,7 +34,7 @@ from PIL import Image, ImageTk
 from .. import FIELDS, FIELD_TYPES
 from ..common import util
 from ..acp.acp import AttendCopyParse
-from ..acp.data import RealData
+from ..acp.data import InvoiceData
 from .custom_widgets import HoverButton, Logger, StoppableThread
 
 
@@ -218,38 +218,60 @@ class Trainer(Frame):
         self.logger.grid(row=1, column=0, sticky='news')
 
     def _train(self):
-        train_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'train/'))
-        val_data = RealData(field=self.args["field"], data_dir=os.path.join(self.args["prepared_data"], 'val/'))
+        train_data = InvoiceData.create_dataset(
+            field=self.args["field"],
+            data_dir=os.path.join(self.args["prepared_data"], 'train/'),
+            batch_size=self.args["batch_size"]
+        )
+        val_data = InvoiceData.create_dataset(
+            field=self.args["field"],
+            data_dir=os.path.join(self.args["prepared_data"], 'val/'),
+            batch_size=self.args["batch_size"]
+        )
 
-        model = AttendCopyParse(field=self.args["field"], train_data=train_data, val_data=val_data,
-                                batch_size=self.args["batch_size"], restore=False)
+        restore = None
+        if os.path.exists(os.path.join('./models/invoicenet/', self.args["field"])):
+            restore = messagebox.askyesno(
+                title="Restore",
+                message="A checkpoint was found! Do you want to restore checkpoint for training?")
 
-        n_updates = 50000
+        restore = True if restore else False
+
+        model = AttendCopyParse(field=self.args["field"], restore=restore)
+
         print_interval = 20
         early_stop_steps = 0
         best = float("inf")
 
+        train_iter = iter(train_data)
+        val_iter = iter(val_data)
+
         self.logger.log("Initializing training!")
         start = time.time()
-        for i in range(n_updates):
-            train_loss = model.train_batch()
+        step = 0
+        while True:
+            train_loss = model.train_step(next(train_iter))
             if not np.isfinite(train_loss):
                 raise ValueError("NaN loss")
 
-            if i % print_interval == 0:
+            if step % print_interval == 0:
                 took = time.time() - start
-                val_loss = model.val_batch()
-                self.logger.log("%d/%d %.4f batches/s train loss: %.4f val loss: %.4f" % (
-                    i, n_updates, (i + 1) / took, train_loss, val_loss))
+                val_loss = model.val_step(next(val_iter))
+                self.logger.log("[step: %d | %.2f steps/s]: train loss: %.4f val loss: %.4f" % (
+                    step, (step + 1) / took, train_loss, val_loss))
                 if not np.isfinite(val_loss):
-                    raise ValueError("NaN loss")
+                    self.logger.log("ERROR: NaN loss")
+                    self.thread.stop()
                 if val_loss < best:
+                    early_stop_steps = 0
                     model.save("best")
                 else:
                     early_stop_steps += 1
                     if early_stop_steps == 500:
                         self.logger.log("Validation loss has not improved for 500 steps")
                         self.thread.stop()
+
+            step += 1
 
             if self.thread.stopped():
                 self.logger.log("Training terminated!")

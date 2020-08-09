@@ -23,62 +23,22 @@ import random
 from decimal import Decimal
 
 import tensorflow as tf
-from tensorflow.python.util import deprecation
 
-from ..acp.data import RealData
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-
-class Data:
-    def sample_generator(self):
-        raise NotImplementedError
-
-    def types(self):
-        raise NotImplementedError
-
-    def shapes(self):
-        raise NotImplementedError
-
-    def array_to_str(self, arr):
-        raise NotImplementedError
-
-
-class UnkDict:
-    unk = '<UNK>'
-
-    def __init__(self, items):
-        if self.unk not in items:
-            raise ValueError("items must contain %s", self.unk)
-
-        self.delegate = dict([(c, i) for i, c in enumerate(items)])
-        self.rdict = {i: c for c, i in self.delegate.items()}
-
-    def __getitem__(self, item):
-        if item in self.delegate:
-            return self.delegate[item]
-        else:
-            return self.delegate[self.unk]
-
-    def __len__(self):
-        return len(self.delegate)
-
-    def idx2key(self, idx):
-        return self.rdict[idx]
+from ..common.data import Data, UnkDict
+from ..acp.data import InvoiceData
 
 
 class ParseData(Data):
-    chars = RealData.chars
-    pad_idx = RealData.pad_idx
-    eos_idx = RealData.eos_idx
-    unk_idx = RealData.unk_idx
-    input_length = RealData.seq_in
+    chars = InvoiceData.chars
+    output_dict = UnkDict(chars)
+    n_output = len(output_dict)
+    pad_idx = InvoiceData.pad_idx
+    eos_idx = InvoiceData.eos_idx
+    unk_idx = InvoiceData.unk_idx
+    input_length = InvoiceData.seq_in
 
     def __init__(self, samples_fname, output_length):
         self.samples_fname = samples_fname
-        self.output_dict = UnkDict(self.chars)
-        self.n_output = len(self.output_dict)
         self.output_length = output_length
 
     def types(self):
@@ -104,16 +64,15 @@ class ParseData(Data):
             strs.append(s)
         return strs
 
-    def normalize(self, str):
-        return '{:f}'.format(Decimal(str).normalize())
+    @staticmethod
+    def normalize(text):
+        return '{:f}'.format(Decimal(text).normalize())
 
     def _encode_str(self, field, max_length):
         encoded = [self.output_dict[c] for c in list(field)[:max_length - 1]] + [self.eos_idx]
         encoded += [self.pad_idx] * (max_length - len(encoded))
         return encoded
 
-
-class TabSeparated(ParseData):
     def sample_generator(self):
         with open(self.samples_fname) as samples_file:
             samples = samples_file.readlines()
@@ -122,3 +81,25 @@ class TabSeparated(ParseData):
             for s in random.sample(samples, len(samples)):
                 source, target = s.strip().split("\t")
                 yield self._encode_str(source, self.input_length), self._encode_str(target, self.output_length)
+
+    @staticmethod
+    def create_dataset(path, output_length, batch_size):
+        data = ParseData(path, output_length)
+
+        def _transform(inputs, targets):
+            return (
+                (tf.one_hot(inputs, ParseData.n_output),
+                 tf.zeros(
+                     (128,),
+                     dtype=tf.float32,
+                     name="empty_context")
+                 ), targets)
+
+        return tf.data.Dataset.from_generator(
+            data.sample_generator,
+            data.types(),
+            data.shapes()
+        ).map(_transform) \
+            .repeat(-1) \
+            .batch(batch_size) \
+            .prefetch(16)

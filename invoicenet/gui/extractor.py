@@ -20,6 +20,7 @@
 
 import os
 import io
+import subprocess
 import tempfile
 import PyPDF2
 import pdfplumber
@@ -28,6 +29,7 @@ import simplejson
 from tkinter import *
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
+from wand.exceptions import WandException
 
 from .. import FIELDS
 from ..acp.acp import AttendCopyParse
@@ -277,7 +279,7 @@ class Extractor(Frame):
         predictions = {}
         for key in FIELDS:
             if self.checkboxes[key].get():
-                model = AttendCopyParse(field=key, batch_size=1, restore=True)
+                model = AttendCopyParse(field=key, restore=True)
                 predictions[key] = model.predict(paths=[path])[0]
 
         if temp is not None:
@@ -437,6 +439,16 @@ class Extractor(Frame):
             self.doc_label.configure(text="{} of {}".format(self.pathidx + 1, len(self.paths)))
             self.logger.clear()
             self.logger.log("Showing invoice '{}'".format(path))
+        except WandException:
+            result = messagebox.askokcancel("Error",
+                                            "ImageMagick Policy Error! Should InvoiceNet try to fix the error?")
+            if result:
+                result = self._fix_policy_error()
+            if result:
+                messagebox.showinfo("Policy Fixed!", "ImageMagick Policy Error fixed! Restart InvoiceNet.")
+            else:
+                messagebox.showerror("ImageMagick Policy Error",
+                                     "Coud not fix ImageMagick policy. Rejecting the current pdf file!")
         except (IndexError, IOError, TypeError):
             pass
 
@@ -492,3 +504,33 @@ class Extractor(Frame):
         help_frame.rowconfigure(0, weight=1)
         help_frame.columnconfigure(0, weight=1)
         HelpBox(help_frame, width=w, height=h, bg=self.background, relief=SUNKEN).grid(row=0, column=0)
+
+    @staticmethod
+    def _fix_policy_error():
+        policy_path = "/etc/ImageMagick-6/policy.xml"
+
+        if not os.path.isfile(policy_path):
+            policy_path = "/etc/ImageMagick/policy.xml"
+
+        if not os.path.exists(policy_path):
+            return False
+
+        try:
+            with open(policy_path, 'r') as policy_file:
+                data = policy_file.readlines()
+                new_data = []
+
+                for line in data:
+                    if 'MVG' in line:
+                        line = '<!-- ' + line + ' -->'
+                    elif 'PDF' in line:
+                        line = '  <policy domain="coder" rights="read|write" pattern="PDF" />\n'
+                    elif '</policymap>' in line:
+                        new_data.append('  <policy domain="coder" rights="read|write" pattern="LABEL" />\n')
+                    new_data.append(line)
+
+                temp = tempfile.NamedTemporaryFile(mode='w', suffix='.xml')
+                temp.writelines(new_data)
+                subprocess.call(["sudo", "mv", temp.name, policy_path])
+        except (IndexError, IOError, TypeError):
+            return False

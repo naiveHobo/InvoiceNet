@@ -50,7 +50,7 @@ def main():
     else:
         paths = [os.path.abspath(f) for f in glob.glob(args.data_dir + "**/*.pdf", recursive=True)]
 
-    model = AttendCopyParse(field=args.field, batch_size=1, restore=True)
+    model = AttendCopyParse(field=args.field, restore=True)
 
     print("\nExtracting field '{}' from {} invoices...\n".format(args.field, len(paths)))
 
