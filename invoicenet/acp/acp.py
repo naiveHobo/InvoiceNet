@@ -69,14 +69,15 @@ class AttendCopyParse(Model):
             if not os.path.exists('./models/invoicenet/{}'.format(self.field)):
                 raise Exception("No trained model available for the field '{}'".format(self.field))
             print("Restoring all " + self.restore_all_path + "...")
-            self.checkpoint.read(self.restore_all_path)
+            self.checkpoint.read(self.restore_all_path).expect_partial()
 
     def loss_func(self, y_true, y_pred):
         mask = tf.cast(tf.logical_not(tf.equal(y_true, InvoiceData.pad_idx)), dtype=tf.float32)  # (bs, seq)
         label_cross_entropy = tf.reduce_sum(
             self.loss_object(y_true, y_pred) * mask, axis=1) / tf.reduce_sum(mask, axis=1)
         field_loss = tf.reduce_mean(label_cross_entropy)
-        return field_loss
+        loss = field_loss + sum(self.model.losses)
+        return loss
 
     @tf.function
     def train_step(self, inputs):
@@ -84,7 +85,6 @@ class AttendCopyParse(Model):
         with tf.GradientTape() as tape:
             predictions = self.model(inputs, training=True)
             loss = self.loss_func(targets, predictions)
-            loss += sum(self.model.losses)
         gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
         return loss
@@ -94,7 +94,6 @@ class AttendCopyParse(Model):
         inputs, targets = inputs[:-1], inputs[-1]
         predictions = self.model(inputs, training=False)
         loss = self.loss_func(targets, predictions)
-        loss += sum(self.model.losses)
         return loss
 
     def predict(self, paths):
