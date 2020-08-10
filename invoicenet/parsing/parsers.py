@@ -49,10 +49,9 @@ class NoOpParser(Parser):
 
 
 class OptionalParser(Parser):
-    def __init__(self, delegate: Parser, seq_out, n_out, eos_idx):
+
+    def __init__(self, delegate: Parser, seq_out):
         super(OptionalParser, self).__init__()
-        self.eos_idx = eos_idx
-        self.n_out = n_out
         self.seq_out = seq_out
         self.delegate = delegate
         self.dense_1 = tf.keras.layers.Dense(1)
@@ -62,9 +61,9 @@ class OptionalParser(Parser):
 
     def call(self, inputs, training=None, mask=None):
         x, context = inputs
-        parsed = self.delegate(inputs)
-        empty_answer = tf.constant(self.eos_idx, tf.int32, shape=(tf.shape(x)[0], self.seq_out))
-        empty_answer = tf.one_hot(empty_answer, self.n_out)  # (bs, seq_out, n_out)
+        parsed = self.delegate(inputs, training, mask)
+        empty_answer = tf.constant(InvoiceData.eos_idx, tf.int32, shape=(tf.shape(x)[0], self.seq_out))
+        empty_answer = tf.one_hot(empty_answer, InvoiceData.n_output)  # (bs, seq_out, n_out)
         logit_empty = self.dense_1(context)  # (bs, 1)
         return parsed + tf.expand_dims(logit_empty, axis=2) * empty_answer
 
@@ -73,10 +72,6 @@ class AmountParser(Parser):
     """
     You should pre-train this parser to parse amount otherwise it's hard to learn jointly.
     """
-    seq_in = InvoiceData.seq_in
-    seq_out = InvoiceData.seq_amount
-    n_out = len(InvoiceData.chars)
-
     def __init__(self):
         super(AmountParser, self).__init__()
         os.makedirs(r"./models/parsers/amount", exist_ok=True)
@@ -91,7 +86,7 @@ class AmountParser(Parser):
         self.decoder_dense = tf.keras.layers.Dense(128)
         self.attention_dense = tf.keras.layers.Dense(1)
         self.prob_dense = tf.keras.layers.Dense(1, activation=tf.keras.activations.sigmoid)
-        self.gen_dense = tf.keras.layers.Dense(self.n_out)
+        self.gen_dense = tf.keras.layers.Dense(InvoiceData.n_output)
 
     def restore(self):
         return r"./models/parsers/amount/best"
@@ -104,7 +99,7 @@ class AmountParser(Parser):
         h_in = tf.expand_dims(h_in, axis=2)  # (bs, seq_in, 1, 256)
 
         # decoder
-        out_input = tf.zeros((tf.shape(x)[0], self.seq_out, 1))
+        out_input = tf.zeros((tf.shape(x)[0], InvoiceData.seq_amount, 1))
         h_out = self.decoder(out_input)
         h_out = tf.expand_dims(h_out, axis=1)  # (bs, 1, seq_out, 128)
 
@@ -132,9 +127,6 @@ class DateParser(Parser):
     """
     You should pre-train this parser to parse dates otherwise it's hard to learn jointly.
     """
-    seq_out = InvoiceData.seq_date
-    n_out = len(InvoiceData.chars)
-
     def __init__(self):
         super(DateParser, self).__init__()
         os.makedirs(r"./models/parsers/date", exist_ok=True)
@@ -149,7 +141,7 @@ class DateParser(Parser):
             self.dense_block.add(tf.keras.layers.Dense(256, activation=tf.keras.activations.relu))
 
         self.dropout = tf.keras.layers.Dropout(0.5)
-        self.dense_out = tf.keras.layers.Dense(self.seq_out * self.n_out)
+        self.dense_out = tf.keras.layers.Dense(InvoiceData.seq_date * InvoiceData.n_output)
 
     def restore(self):
         return r"./models/parsers/date/best"
@@ -162,4 +154,4 @@ class DateParser(Parser):
         x = self.dense_block(x, 256)  # (bs, 256)
         x = self.dropout(x, training=training)  # (bs, 256)
         x = self.dense_out(x)  # (bs, seq_out * n_out)
-        return tf.reshape(x, (-1, self.seq_out, self.n_out))
+        return tf.reshape(x, (-1, InvoiceData.seq_date, InvoiceData.n_output))

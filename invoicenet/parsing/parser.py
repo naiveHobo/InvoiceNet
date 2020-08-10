@@ -38,13 +38,15 @@ class Parser(Model):
             from_logits=True,
             reduction=tf.keras.losses.Reduction.NONE)
 
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+        self.optimizer = tf.keras.optimizers.Nadam(learning_rate=1e-4)
+
+        self.parser.compile(self.optimizer)
 
         self.checkpoint = tf.train.Checkpoint(optimizer=self.optimizer, model=self.parser)
 
         if self.continue_from:
             print("Restoring " + self.continue_from + "...")
-            self.checkpoint.restore(self.continue_from)
+            self.checkpoint.read(self.continue_from)
 
     def loss_func(self, y_true, y_pred):
         mask = tf.logical_not(tf.equal(y_true, ParseData.pad_idx))
@@ -62,7 +64,6 @@ class Parser(Model):
 
         gradients = tape.gradient(loss, self.parser.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.parser.trainable_variables))
-
         return loss
 
     @tf.function
@@ -76,4 +77,4 @@ class Parser(Model):
         self.checkpoint.write(file_prefix="./models/parsers/%s/%s" % (self.type, name))
 
     def load(self, name):
-        self.checkpoint.restore(name)
+        self.checkpoint.read(name)

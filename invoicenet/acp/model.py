@@ -21,9 +21,7 @@
 
 import tensorflow as tf
 
-from .. import FIELD_TYPES, FIELDS
 from .data import InvoiceData
-from ..parsing.parsers import DateParser, AmountParser, NoOpParser, OptionalParser
 
 
 class DilatedConvBlock(tf.keras.layers.Layer):
@@ -150,32 +148,13 @@ class AttendCopyParseModel(tf.keras.Model):
     """
     You should pre-train this parser to parse dates otherwise it's hard to learn jointly.
     """
-    seq_out = InvoiceData.seq_date
-    n_out = len(InvoiceData.chars)
-
-    def __init__(self, field):
+    def __init__(self, parser):
         super(AttendCopyParseModel, self).__init__()
-        self.parser = None
-
-        if FIELDS[field] == FIELD_TYPES["optional"]:
-            noop_parser = NoOpParser()
-            self.parser = OptionalParser(noop_parser, 128, 103, 1)
-        elif FIELDS[field] == FIELD_TYPES["amount"]:
-            self.parser = AmountParser()
-        elif FIELDS[field] == FIELD_TYPES["date"]:
-            self.parser = DateParser()
-        else:
-            self.parser = NoOpParser()
-
+        self.parser = parser
         self.attend = AttendBlock(32)
 
     def call(self, inputs, training=None, mask=None):
         memories, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses = inputs
-
-        bs = tf.shape(pixels)[0]
-        h, w = InvoiceData.im_size[0], InvoiceData.im_size[1]
-        seq_in = InvoiceData.seq_in
-        n_out = InvoiceData.n_output
 
         spatial_attention, context = self.attend(inputs=(pixels,
                                                          word_indices,
@@ -187,9 +166,11 @@ class AttendCopyParseModel(tf.keras.Model):
 
         # Copy
         memories = tf.sparse.reshape(memories,
-                                     (-1, h * w * InvoiceData.n_memories, InvoiceData.seq_in, n_out))
+                                     (-1, InvoiceData.im_size[0] * InvoiceData.im_size[1] * InvoiceData.n_memories,
+                                      InvoiceData.seq_in,
+                                      InvoiceData.n_output))
         x = tf.reshape(tf.sparse.reduce_sum(spatial_attention * memories, axis=1),
-                       (bs, seq_in, n_out))  # (bs, seq_in, n_out)
+                       (-1, InvoiceData.seq_in, InvoiceData.n_output))  # (bs, seq_in, n_out)
 
         # Parse
         parsed = self.parser(inputs=(x, context), training=training)

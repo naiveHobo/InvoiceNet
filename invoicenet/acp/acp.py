@@ -26,11 +26,11 @@ import tensorflow as tf
 from ..common.model import Model
 from .data import InvoiceData
 from .model import AttendCopyParseModel
+from .. import FIELD_TYPES, FIELDS
+from ..parsing.parsers import DateParser, AmountParser, NoOpParser, OptionalParser
 
 
 class AttendCopyParse(Model):
-    frac_ce_loss = 0.0001
-    lr = 3e-4
 
     def __init__(self, field, restore=False):
         self.field = field
@@ -38,13 +38,28 @@ class AttendCopyParse(Model):
         self.restore_all_path = './models/invoicenet/{}/best'.format(self.field) if restore else None
         os.makedirs("./models/invoicenet", exist_ok=True)
 
-        self.model = AttendCopyParseModel(field=self.field)
+        if FIELDS[field] == FIELD_TYPES["optional"]:
+            noop_parser = NoOpParser()
+            parser = OptionalParser(noop_parser, 128)
+        elif FIELDS[field] == FIELD_TYPES["amount"]:
+            parser = AmountParser()
+        elif FIELDS[field] == FIELD_TYPES["date"]:
+            parser = DateParser()
+        else:
+            parser = NoOpParser()
+
+        restore = parser.restore()
+        if restore is not None:
+            print("Restoring %s parser %s..." % (self.field, restore))
+            tf.train.Checkpoint(model=parser).read(restore).expect_partial()
+
+        self.model = AttendCopyParseModel(parser=parser)
 
         self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
             from_logits=True,
             reduction=tf.keras.losses.Reduction.NONE)
 
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=AttendCopyParse.lr)
+        self.optimizer = tf.keras.optimizers.Nadam(learning_rate=3e-4)
 
         self.model.compile(self.optimizer)
 
@@ -54,14 +69,7 @@ class AttendCopyParse(Model):
             if not os.path.exists('./models/invoicenet/{}'.format(self.field)):
                 raise Exception("No trained model available for the field '{}'".format(self.field))
             print("Restoring all " + self.restore_all_path + "...")
-            self.checkpoint.restore(self.restore_all_path)
-        else:
-            checkpoint = tf.train.Checkpoint(model=self.model.parser)
-            restore = self.model.parser.restore()
-            if restore is not None:
-                print("Restoring %s parser %s..." % (self.field, restore))
-                status = checkpoint.restore(restore)
-                status.expect_partial()
+            self.checkpoint.read(self.restore_all_path)
 
     def loss_func(self, y_true, y_pred):
         mask = tf.cast(tf.logical_not(tf.equal(y_true, InvoiceData.pad_idx)), dtype=tf.float32)  # (bs, seq)
@@ -70,24 +78,28 @@ class AttendCopyParse(Model):
         field_loss = tf.reduce_mean(label_cross_entropy)
         return field_loss
 
+    @tf.function
     def train_step(self, inputs):
         inputs, targets = inputs[:-1], inputs[-1]
         with tf.GradientTape() as tape:
             predictions = self.model(inputs, training=True)
             loss = self.loss_func(targets, predictions)
+            loss += sum(self.model.losses)
         gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
         return loss
 
+    @tf.function
     def val_step(self, inputs):
         inputs, targets = inputs[:-1], inputs[-1]
         predictions = self.model(inputs, training=False)
         loss = self.loss_func(targets, predictions)
+        loss += sum(self.model.losses)
         return loss
 
     def predict(self, paths):
         data = InvoiceData(field=self.field)
-        shapes, types = data.shapes(), data.types()
+        shapes, types = data.shapes()[:-1], data.types()[:-1]
 
         def _transform(i, v, s, *args):
             return (tf.SparseTensor(i, v, s),) + args
@@ -102,8 +114,7 @@ class AttendCopyParse(Model):
         predictions = []
         for sample in dataset:
             try:
-                input_data = sample[:-1]
-                logits = self.model(input_data, training=False)
+                logits = self.model(sample, training=False)
                 chars = tf.argmax(logits, axis=2, output_type=tf.int32).numpy()
                 predictions.extend(data.array_to_str(chars))
             except tf.errors.OutOfRangeError:
@@ -115,4 +126,4 @@ class AttendCopyParse(Model):
         self.checkpoint.write(file_prefix="./models/invoicenet/%s/%s" % (self.field, name))
 
     def load(self, name):
-        self.checkpoint.restore(name)
+        self.checkpoint.read(name)

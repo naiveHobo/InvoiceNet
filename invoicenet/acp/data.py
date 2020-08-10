@@ -207,7 +207,7 @@ class InvoiceData(Data):
         target = page['fields'][self.field]
         if FIELDS[self.field] == FIELD_TYPES["amount"]:
             target = self._preprocess_amount(target)
-        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
+        target = InvoiceData.encode_sequence(target, self.seq_out[FIELDS[self.field]])
 
         return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
 
@@ -252,10 +252,7 @@ class InvoiceData(Data):
             if "date" in ngram["parses"]:
                 ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
 
-        fields = {field: '0' for field in FIELDS}
-
         page = {
-            "fields": fields,
             "nGrams": ngrams,
             "height": height,
             "width": width,
@@ -271,12 +268,7 @@ class InvoiceData(Data):
                                                                                                         page['height'],
                                                                                                         page['width'])
 
-        target = page['fields'][self.field]
-        if FIELDS[self.field] == FIELD_TYPES["amount"]:
-            target = self._preprocess_amount(target)
-        target = self._encode_sequence(target, self.seq_out[FIELDS[self.field]])
-
-        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses, target
+        return i, v, s, pixels, word_indices, pattern_indices, char_indices, memory_mask, parses
 
     def generate_test_data(self, paths: list):
         if not isinstance(paths, list):
@@ -293,9 +285,10 @@ class InvoiceData(Data):
 
         return _generator
 
-    def _encode_sequence(self, value, max_len):
-        encoded = [self.output_dict[c] for c in list(value)[:max_len - 1]] + [self.eos_idx]
-        encoded += [self.pad_idx] * (max_len - len(encoded))
+    @staticmethod
+    def encode_sequence(value, max_len):
+        encoded = [InvoiceData.output_dict[c] for c in list(value)[:max_len - 1]] + [InvoiceData.eos_idx]
+        encoded += [InvoiceData.pad_idx] * (max_len - len(encoded))
         return encoded
 
     @staticmethod

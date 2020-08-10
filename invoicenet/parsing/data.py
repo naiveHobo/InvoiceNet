@@ -64,15 +64,6 @@ class ParseData(Data):
             strs.append(s)
         return strs
 
-    @staticmethod
-    def normalize(text):
-        return '{:f}'.format(Decimal(text).normalize())
-
-    def _encode_str(self, field, max_length):
-        encoded = [self.output_dict[c] for c in list(field)[:max_length - 1]] + [self.eos_idx]
-        encoded += [self.pad_idx] * (max_length - len(encoded))
-        return encoded
-
     def sample_generator(self):
         with open(self.samples_fname) as samples_file:
             samples = samples_file.readlines()
@@ -80,7 +71,8 @@ class ParseData(Data):
         while True:
             for s in random.sample(samples, len(samples)):
                 source, target = s.strip().split("\t")
-                yield self._encode_str(source, self.input_length), self._encode_str(target, self.output_length)
+                yield (InvoiceData.encode_sequence(source, self.input_length),
+                       InvoiceData.encode_sequence(target, self.output_length))
 
     @staticmethod
     def create_dataset(path, output_length, batch_size):
