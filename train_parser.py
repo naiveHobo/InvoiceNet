@@ -22,6 +22,8 @@ import argparse
 
 from invoicenet.common import trainer
 from invoicenet.parsing.parser import Parser
+from invoicenet.parsing.data import ParseData
+from invoicenet.acp.data import InvoiceData
 
 
 def main():
@@ -36,8 +38,24 @@ def main():
 
     args = ap.parse_args()
 
+    output_length = {"date": InvoiceData.seq_date, "amount": InvoiceData.seq_amount}[args.field]
+
+    train_data = ParseData.create_dataset(
+        path='invoicenet/parsing/data/%s/train.tsv' % args.field,
+        output_length=output_length,
+        batch_size=args.batch_size)
+
+    val_data = ParseData.create_dataset(
+        path='invoicenet/parsing/data/%s/valid.tsv' % args.field,
+        output_length=output_length,
+        batch_size=args.batch_size)
+
     print("Training...")
-    trainer.train(Parser(field=args.field, batch_size=args.batch_size, restore=args.restore))
+    trainer.train(
+        model=Parser(field=args.field, restore=args.restore),
+        train_data=train_data,
+        val_data=val_data
+    )
 
 
 if __name__ == '__main__':

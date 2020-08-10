@@ -22,17 +22,12 @@ import setuptools
 
 from distutils import ccompiler
 from distutils import sysconfig
-from setuptools.extension import Extension
-from setuptools.command.build_ext import build_ext
 import json
-import glob
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
-
-minimum_cuda_version = 6050
 
 
 def find_in_path(filename, paths):
@@ -62,8 +57,7 @@ def nvcc_compiler_settings():
     # Can't find either NVCC or some CUDA_PATH
     if not nvcc_found and not cuda_path_found:
         raise InspectCudaException("Neither nvcc '{}' "
-                                   "or the CUDA_PATH '{}' were found!".format(
-            nvcc_path, cuda_path))
+                                   "or the CUDA_PATH '{}' were found!".format(nvcc_path, cuda_path))
 
     # No NVCC, try find it in the CUDA_PATH
     if not nvcc_found:
@@ -86,8 +80,7 @@ def nvcc_compiler_settings():
             os.path.join(os.path.dirname(nvcc_path), ".."))
 
         print("CUDA_PATH not found, inferring it as '{}' "
-              "from the nvcc location '{}'".format(
-            cuda_path, nvcc_path))
+              "from the nvcc location '{}'".format(cuda_path, nvcc_path))
 
         cuda_path_found = True
 
@@ -160,9 +153,9 @@ def inspect_cuda_version_and_devices(compiler, settings):
                                library_dirs=settings['library_dirs'],
                                libraries=settings['libraries'])
 
-    except Exception as e:
+    except Exception as exp:
         msg = ("Running the CUDA device check "
-               "stub failed\n{}".format(str(e)))
+               "stub failed\n{}".format(str(exp)))
         raise InspectCudaException(msg)
 
     return output
@@ -188,18 +181,18 @@ def build_and_run(compiler, source, filename, libraries=(),
                                      library_dirs=library_dirs,
                                      extra_postargs=postargs,
                                      target_lang='c++')
-        except Exception as e:
+        except Exception as exp:
             msg = ('Cannot build a stub file.\n'
-                   'Original error: {0}'.format(e))
+                   'Original error: {0}'.format(exp))
             raise InspectCudaException(msg)
 
         try:
             out = subprocess.check_output(os.path.join(temp_dir, 'a'))
             return out
 
-        except Exception as e:
+        except Exception as exp:
             msg = ('Cannot execute a stub file.\n'
-                   'Original error: {0}'.format(e))
+                   'Original error: {0}'.format(exp))
             raise InspectCudaException(msg)
 
     finally:
@@ -245,11 +238,11 @@ def inspect_cuda():
     return json.loads(output), nvcc_settings
 
 
-tensorflow_package = 'tensorflow==1.14'
+tensorflow_package = 'tensorflow==2.3.0'
 try:
     # Look for CUDA devices and NVCC/CUDA installation
     device_info, nvcc_settings = inspect_cuda()
-    tensorflow_package = 'tensorflow-gpu==1.14'
+    tensorflow_package = 'tensorflow-gpu==2.3.0'
 
     cuda_version = device_info['cuda_version']
     print("CUDA '{}' found. "
@@ -261,7 +254,7 @@ except InspectCudaException as e:
     print("Installing tensorflow CPU")
 
     device_info, nvcc_settings = {}, {'cuda_available': False}
-    tensorflow_package = 'tensorflow==1.14'
+    tensorflow_package = 'tensorflow==2.3.0'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -270,7 +263,7 @@ setuptools.setup(name='InvoiceNet',
                  version='0.1',
                  description='A deep neural network to extract intelligent information from invoice documents',
                  url='https://github.com/naiveHobo/InvoiceNet',
-                 author='naiveHobo',
+                 author='Sarthak Mittal',
                  author_email='sarthakmittal2608@gmail.com',
                  license='MIT',
                  long_description=long_description,
@@ -279,17 +272,12 @@ setuptools.setup(name='InvoiceNet',
                  install_requires=[
                      tensorflow_package,
                      "datefinder==0.7.1",
-                     "Keras==2.4.3",
-                     "numpy<=1.19.1"
                      "opencv-python==4.3.0.36",
                      "pdf2image==1.13.1",
                      "pdfplumber==0.5.22",
-                     "Pillow==7.2.0",
                      "PyPDF2==1.26.0",
                      "pytesseract==0.3.4",
                      "python-dateutil==2.8.1",
                      "PyYAML==5.3.1",
-                     "scipy==1.5.2",
-                     "simplejson==3.17.2",
-                     "tqdm==4.48.2",
+                     "simplejson==3.17.2"
                  ])

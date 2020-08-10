@@ -21,19 +21,13 @@
 
 import os
 import tensorflow as tf
-import tensorflow.contrib.rnn as rnn
-from tensorflow.contrib import layers
-from tensorflow.python.util import deprecation
 
-from ..acp.data import RealData
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+from ..acp.data import InvoiceData
 
 
-class Parser:
-    def parse(self, x, context, is_training):
-        raise NotImplementedError()
+class Parser(tf.keras.Model):
+    def __init__(self):
+        super(Parser, self).__init__()
 
     def restore(self):
         """
@@ -43,122 +37,121 @@ class Parser:
 
 
 class NoOpParser(Parser):
+    def __init__(self):
+        super(NoOpParser, self).__init__()
+
     def restore(self):
         return None
 
-    def parse(self, x, context, is_training):
+    def call(self, inputs, training=None, mask=None):
+        x, context = inputs
         return x
 
 
 class OptionalParser(Parser):
-    def __init__(self, delegate: Parser, bs, seq_out, n_out, eos_idx):
-        self.eos_idx = eos_idx
-        self.n_out = n_out
-        self.seq_out = seq_out
-        self.bs = bs
 
+    def __init__(self, delegate: Parser, seq_out):
+        super(OptionalParser, self).__init__()
+        self.seq_out = seq_out
         self.delegate = delegate
+        self.dense_1 = tf.keras.layers.Dense(1)
 
     def restore(self):
         return self.delegate.restore()
 
-    def parse(self, x, context, is_training):
-        parsed = self.delegate.parse(x, context, is_training)
-
-        empty_answer = tf.constant(self.eos_idx, tf.int32, shape=(self.bs, self.seq_out))
-        empty_answer = tf.one_hot(empty_answer, self.n_out)  # (bs, seq_out, n_out)
-
-        logit_empty = layers.fully_connected(context, 1, activation_fn=None)  # (bs, 1)
-
-        return parsed + tf.reshape(logit_empty, (self.bs, 1, 1)) * empty_answer
+    def call(self, inputs, training=None, mask=None):
+        x, context = inputs
+        parsed = self.delegate(inputs, training, mask)
+        empty_answer = tf.constant(InvoiceData.eos_idx, tf.int32, shape=(tf.shape(x)[0], self.seq_out))
+        empty_answer = tf.one_hot(empty_answer, InvoiceData.n_output)  # (bs, seq_out, n_out)
+        logit_empty = self.dense_1(context)  # (bs, 1)
+        return parsed + tf.expand_dims(logit_empty, axis=2) * empty_answer
 
 
 class AmountParser(Parser):
     """
     You should pre-train this parser to parse amount otherwise it's hard to learn jointly.
     """
-    seq_in = RealData.seq_in
-    seq_out = RealData.seq_amount
-    n_out = len(RealData.chars)
-    scope = 'parse/amount'
-
-    def __init__(self, bs):
+    def __init__(self):
+        super(AmountParser, self).__init__()
         os.makedirs(r"./models/parsers/amount", exist_ok=True)
-        self.bs = bs
+
+        self.encoder = tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(128, unit_forget_bias=True, return_sequences=True),
+            name="encoder")
+        self.decoder = tf.keras.layers.LSTM(
+            128, unit_forget_bias=True, return_sequences=True, name="decoder")
+
+        self.encoder_dense = tf.keras.layers.Dense(128)
+        self.decoder_dense = tf.keras.layers.Dense(128)
+        self.attention_dense = tf.keras.layers.Dense(1)
+        self.prob_dense = tf.keras.layers.Dense(1, activation=tf.keras.activations.sigmoid)
+        self.gen_dense = tf.keras.layers.Dense(InvoiceData.n_output)
 
     def restore(self):
-        return self.scope, r"./models/parsers/amount/best"
+        return r"./models/parsers/amount/best"
 
-    def parse(self, x, context, is_training):
-        with tf.variable_scope(self.scope):
-            with tf.variable_scope("encoder"):
-                lstm_fw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                lstm_bw_cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(cell_fw=lstm_fw_cell,
-                                                                            cell_bw=lstm_bw_cell,
-                                                                            inputs=x,
-                                                                            dtype=tf.float32,
-                                                                            scope="BiLSTM")
+    def call(self, inputs, training=None, mask=None):
+        x, context = inputs
 
-                h_in = tf.concat([output_fw, output_bw], axis=2)
-                h_in = tf.reshape(h_in, (self.bs, self.seq_in, 1, 256))  # (bs, seq_in, 1, 128)
+        # encoder
+        h_in = self.encoder(x)
+        h_in = tf.expand_dims(h_in, axis=2)  # (bs, seq_in, 1, 256)
 
-            with tf.variable_scope("decoder"):
-                out_input = tf.zeros((self.bs, self.seq_out, 1))
-                out_input = tf.unstack(out_input, self.seq_out, 1)
-                cell = tf.nn.rnn_cell.LSTMCell(128, forget_bias=1.0, state_is_tuple=True)
-                h_out, _ = rnn.static_rnn(cell, out_input, dtype=tf.float32)
-                h_out = tf.reshape(tf.concat(h_out, axis=-1), [self.bs, 1, self.seq_out, 128])
+        # decoder
+        out_input = tf.zeros((tf.shape(x)[0], InvoiceData.seq_amount, 1))
+        h_out = self.decoder(out_input)
+        h_out = tf.expand_dims(h_out, axis=1)  # (bs, 1, seq_out, 128)
 
-            # Bahdanau attention
-            att = tf.nn.tanh(layers.fully_connected(h_out, 128, activation_fn=None) + layers.fully_connected(h_in, 128,
-                                                                                                             activation_fn=None))
-            att = layers.fully_connected(att, 1, activation_fn=None)  # (bs, seq_in, seq_out, 1)
-            att = tf.nn.softmax(att, axis=1)  # (bs, seq_in, seq_out, 1)
+        # Bahdanau attention
+        att = tf.math.tanh(self.decoder_dense(h_out) + self.encoder_dense(h_in))  # (bs, seq_in, seq_out, 128)
+        att = self.attention_dense(att)  # (bs, seq_in, seq_out, 1)
+        att = tf.math.softmax(att, axis=1)  # (bs, seq_in, seq_out, 1)
 
-            attended_h = tf.reduce_sum(att * h_in, axis=1)  # (bs, seq_out, 128)
+        attended_h = tf.reduce_sum(att * h_in, axis=1)  # (bs, seq_out, 128)
 
-            p_gen = layers.fully_connected(attended_h, 1, activation_fn=tf.nn.sigmoid)  # (bs, seq_out, 1)
-            p_copy = (1 - p_gen)
+        p_gen = self.gen_dense(attended_h)  # (bs, seq_out, 1)
+        p_copy = (1 - p_gen)
 
-            # Generate
-            gen = layers.fully_connected(attended_h, self.n_out, activation_fn=None)  # (bs, seq_out, n_out)
-            gen = tf.reshape(gen, (self.bs, self.seq_out, self.n_out))
+        # Generate
+        gen = self.gen_dense(attended_h)  # (bs, seq_out, n_out)
 
-            # Copy
-            copy = tf.log(tf.reduce_sum(att * tf.reshape(x, (self.bs, self.seq_in, 1, self.n_out)),
-                                        axis=1) + 1e-8)  # (bs, seq_out, n_out)
+        # Copy
+        copy = tf.math.log(tf.reduce_sum(att * tf.expand_dims(x, axis=2), axis=1) + 1e-8)  # (bs, seq_out, n_out)
 
-            output_logits = p_copy * copy + p_gen * gen
-            return output_logits
+        output_logits = p_copy * copy + p_gen * gen
+        return output_logits
 
 
 class DateParser(Parser):
     """
     You should pre-train this parser to parse dates otherwise it's hard to learn jointly.
     """
-    seq_out = RealData.seq_date
-    n_out = len(RealData.chars)
-    scope = 'parse/date'
-
-    def __init__(self, bs):
+    def __init__(self):
+        super(DateParser, self).__init__()
         os.makedirs(r"./models/parsers/date", exist_ok=True)
-        self.bs = bs
+
+        self.conv_block = tf.keras.Sequential()
+        for _ in range(4):
+            self.conv_block.add(tf.keras.layers.Conv1D(128, 3, padding='same', activation=tf.keras.activations.relu))
+            self.conv_block.add(tf.keras.layers.MaxPool1D(2, 2))
+
+        self.dense_block = tf.keras.Sequential()
+        for _ in range(3):
+            self.dense_block.add(tf.keras.layers.Dense(256, activation=tf.keras.activations.relu))
+
+        self.dropout = tf.keras.layers.Dropout(0.5)
+        self.dense_out = tf.keras.layers.Dense(InvoiceData.seq_date * InvoiceData.n_output)
 
     def restore(self):
-        return self.scope, r"./models/parsers/date/best"
+        return r"./models/parsers/date/best"
 
-    def parse(self, x, context, is_training):
-        with tf.variable_scope(self.scope):
-            for i in range(4):
-                x = tf.layers.conv1d(x, 128, 3, padding="same", activation=tf.nn.relu)  # (bs, 128, 128)
-                x = tf.layers.max_pooling1d(x, 2, 2)  # (bs, 64-32-16-8, 128)
-            x = tf.reduce_sum(x, axis=1)  # (bs, 128)
-
-            x = tf.concat([x, context], axis=1)  # (bs, 256)
-            for i in range(3):
-                x = layers.fully_connected(x, 256)
-
-            x = layers.dropout(x, is_training=is_training)
-            x = layers.fully_connected(x, self.seq_out * self.n_out, activation_fn=None)
-            return tf.reshape(x, (self.bs, self.seq_out, self.n_out))
+    def call(self, inputs, training=None, mask=None):
+        x, context = inputs
+        x = self.conv_block(x)  # (bs, 8, 128)
+        x = tf.reduce_sum(x, axis=1)  # (bs, 128)
+        x = tf.concat([x, context], axis=1)  # (bs, 256)
+        x = self.dense_block(x, 256)  # (bs, 256)
+        x = self.dropout(x, training=training)  # (bs, 256)
+        x = self.dense_out(x)  # (bs, seq_out * n_out)
+        return tf.reshape(x, (-1, InvoiceData.seq_date, InvoiceData.n_output))

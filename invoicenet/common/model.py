@@ -19,11 +19,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+
 class Model:
-    def train_batch(self):
+
+    def train_step(self, inputs):
         raise NotImplementedError()
 
-    def val_batch(self):
+    def val_step(self, inputs):
         raise NotImplementedError
 
     def load(self, name):
