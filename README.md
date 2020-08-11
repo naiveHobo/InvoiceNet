@@ -1,10 +1,27 @@
-# InvoiceNet
-Deep neural network to extract intelligent information from PDF invoice documents.
+![InvoiceNet Logo](_images/logo.png)
+
+--------------------------------------------------------------------------------
+
+Deep neural network to extract intelligent information from invoice documents.
+
+**TL;DR**
+
+* An easy to use UI to view PDF/JPG/PNG invoices and extract information.
+* Train custom models using the Trainer UI on your own dataset.
+* Add or remove invoice fields as per your convenience.
+* Save the extracted information into your system with the click of a button.
+
+:star: We appreciate your star, it helps!
+
+The InvoiceNet logo was designed by [Sidhant Tibrewal](https://www.behance.net/tiber_sid).
+Check out his work for some more beautiful designs.
+
+---
 
 ![InvoiceNet](_images/invoicenet.png)
 
-
 ---
+
 **DISCLAIMER**: 
 
 Pre-trained models for some general invoice fields are not available right now but will soon be provided.
