@@ -173,14 +173,15 @@ class Extractor(Frame):
 
         # Logo Frame
         logo_frame.columnconfigure(0, weight=1)
-        logo_frame.columnconfigure(1, weight=1)
-        logo_frame.columnconfigure(2, weight=2)
+        logo_frame.columnconfigure(1, weight=0)
+        logo_frame.columnconfigure(2, weight=0)
+        logo_frame.columnconfigure(3, weight=1)
         logo_frame.rowconfigure(0, weight=1)
 
         self.logo_img = ImageTk.PhotoImage(Image.open(r'widgets/logo.png'))
-        Label(logo_frame, bg=self.background, image=self.logo_img, anchor='w').grid(row=0, column=0, sticky='news')
+        Label(logo_frame, bg=self.background, image=self.logo_img).grid(row=0, column=1, sticky='news', pady=10)
         Label(logo_frame, text="InvoiceNet", bg=self.background,
-              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=1, sticky='news', padx=50)
+              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=2, sticky='news', padx=20, pady=10)
 
         # Param Frame
         param_frame.columnconfigure(0, weight=1)

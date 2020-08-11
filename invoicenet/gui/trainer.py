@@ -93,14 +93,15 @@ class Trainer(Frame):
 
         # Logo Frame
         logo_frame.columnconfigure(0, weight=1)
-        logo_frame.columnconfigure(1, weight=1)
-        logo_frame.columnconfigure(2, weight=2)
+        logo_frame.columnconfigure(1, weight=0)
+        logo_frame.columnconfigure(2, weight=0)
+        logo_frame.columnconfigure(3, weight=1)
         logo_frame.rowconfigure(0, weight=1)
 
         self.logo_img = ImageTk.PhotoImage(Image.open(r'widgets/logo.png'))
-        Label(logo_frame, bg=self.background, image=self.logo_img, anchor='w').grid(row=0, column=0, sticky='news')
-        Label(logo_frame, text="InvoiceNet - Trainer", bg=self.background,
-              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=1, sticky='news', padx=50)
+        Label(logo_frame, bg=self.background, image=self.logo_img).grid(row=0, column=1, sticky='news', pady=10)
+        Label(logo_frame, text="InvoiceNet", bg=self.background,
+              fg="white", font=("Arial", 24, "bold")).grid(row=0, column=2, sticky='news', padx=20, pady=10)
 
         # Param Frame
         param_frame.columnconfigure(0, weight=1)
@@ -122,9 +123,9 @@ class Trainer(Frame):
         batch_param = Frame(param_frame, bg=self.background, bd=0, relief=SUNKEN,
                             highlightbackground=self.border_color, highlightthickness=0)
 
-        data_param.grid(row=1, column=1, pady=20, padx=20)
+        data_param.grid(row=1, column=1, pady=(0, 20), padx=20)
         out_param.grid(row=2, column=1, pady=20, padx=20)
-        field_param.grid(row=1, column=2, pady=20, padx=20)
+        field_param.grid(row=1, column=2, pady=(0, 20), padx=20)
         batch_param.grid(row=2, column=2, pady=20, padx=20)
 
         df = Frame(data_param, bg=self.background, bd=0, relief=SUNKEN,
@@ -172,7 +173,7 @@ class Trainer(Frame):
               anchor='w', fg="white", font=("Arial", 8, "bold")).pack(side=TOP, fill=BOTH)
         self.batch_text = StringVar(batch_param)
         self.batch_text.set("4")
-        batch_list = OptionMenu(batch_param, self.batch_text, "1", "2", "4", "8", "16", "32")
+        batch_list = OptionMenu(batch_param, self.batch_text, *[str(2 ** i) for i in range(8)])
         batch_list.configure(highlightthickness=0, width=20, bg='#ffffff')
         batch_list.pack(side=BOTTOM)
 
