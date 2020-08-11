@@ -13,8 +13,8 @@ Deep neural network to extract intelligent information from invoice documents.
 
 :star: We appreciate your star, it helps!
 
-The InvoiceNet logo was designed by [Sidhant Tibrewal](https://www.behance.net/tiber_sid).
-Check out his work for some more beautiful designs.
+The InvoiceNet logo was designed by [Sidhant Tibrewal](linkedin.com/in/sidhant-tibrewal-864058148).
+[Check out](https://www.behance.net/tiber_sid) his work for some more beautiful designs.
 
 ---
 
