@@ -62,7 +62,7 @@ class OptionalParser(Parser):
     def call(self, inputs, training=None, mask=None):
         x, context = inputs
         parsed = self.delegate(inputs, training, mask)
-        empty_answer = tf.constant(InvoiceData.eos_idx, tf.int32, shape=(tf.shape(x)[0], self.seq_out))
+        empty_answer = tf.fill([tf.shape(x)[0], self.seq_out], InvoiceData.eos_idx)
         empty_answer = tf.one_hot(empty_answer, InvoiceData.n_output)  # (bs, seq_out, n_out)
         logit_empty = self.dense_1(context)  # (bs, 1)
         return parsed + tf.expand_dims(logit_empty, axis=2) * empty_answer
