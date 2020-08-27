@@ -265,10 +265,11 @@ class Trainer(Frame):
                     self.thread.stop()
                 if val_loss < best:
                     early_stop_steps = 0
+                    best = val_loss
                     model.save("best")
                 else:
-                    early_stop_steps += 1
-                    if early_stop_steps == 500:
+                    early_stop_steps += print_interval
+                    if early_stop_steps >= 500:
                         self.logger.log("Validation loss has not improved for 500 steps")
                         self.thread.stop()
 
