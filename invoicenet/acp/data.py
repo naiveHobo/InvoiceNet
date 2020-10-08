@@ -137,9 +137,9 @@ class InvoiceData(Data):
                 memory_mask[top, left] = 1.0
 
                 pattern = text
-                pattern = re.sub(r"\\p{Lu}", "X", pattern)
-                pattern = re.sub(r"\\p{Ll}", "x", pattern)
-                pattern = re.sub(r"\\p{N}", "0", pattern)
+                pattern = re.sub(r"[A-Z]", "X", pattern)
+                pattern = re.sub(r"[a-z]", "x", pattern)
+                pattern = re.sub(r"[0-9]", "0", pattern)
                 pattern = re.sub(r"[^Xx0]", "-", pattern)
 
                 pattern_idx = (int(hashlib.md5(str.encode(pattern)).hexdigest(), 16) % (self.pattern_hash_size - 1)) + 1
