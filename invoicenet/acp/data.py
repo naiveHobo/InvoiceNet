@@ -236,8 +236,8 @@ class InvoiceData(Data):
                 yield self._load_document(doc_id.strip())
             except GeneratorExit:
                 return
-            except:
-                print(doc_id + "%d/%d" % (exceptions, i))
+            except Exception as exp:
+                print("Exception: {} : {}".format(doc_id, exp))
                 exceptions += 1
 
     def _process_pdf(self, path):
