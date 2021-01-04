@@ -106,8 +106,14 @@ def main():
     for phase, filenames in [('train', train_files), ('val', val_files)]:
         print("Preparing {} data...".format(phase))
 
-        for filename in tqdm.tqdm(filenames):
-            process_file(filename, args.out_dir, phase)
+        with tqdm.tqdm(total=len(filenames)) as pbar:
+            pool = mp.Pool(3)
+            for filename in filenames:
+                pool.apply_async(process_file, args=(filename, args.out_dir, phase),
+                                 callback=lambda _: pbar.update())
+
+            pool.close()
+            pool.join()
 
 
 if __name__ == '__main__':
