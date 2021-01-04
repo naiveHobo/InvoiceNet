@@ -87,6 +87,8 @@ def main():
                     help="path to save prepared data")
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
+    ap.add_argument("--cores", type=int, help='Number of virtual cores to parallelize over',
+                    default=max(1, (mp.cpu_count() - 2) / 2)) # To prevent IPC issues
 
     args = ap.parse_args()
 
@@ -107,7 +109,7 @@ def main():
         print("Preparing {} data...".format(phase))
 
         with tqdm.tqdm(total=len(filenames)) as pbar:
-            pool = mp.Pool(3)
+            pool = mp.Pool(args.cores)
             for filename in filenames:
                 pool.apply_async(process_file, args=(filename, args.out_dir, phase),
                                  callback=lambda _: pbar.update())
