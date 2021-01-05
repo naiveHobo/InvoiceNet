@@ -88,7 +88,7 @@ def main():
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
     ap.add_argument("--cores", type=int, help='Number of virtual cores to parallelize over',
-                    default=max(1, (mp.cpu_count() - 2) / 2)) # To prevent IPC issues
+                    default=max(1, (mp.cpu_count() - 2) // 2)) # To prevent IPC issues
 
     args = ap.parse_args()
 
