@@ -17,16 +17,65 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import multiprocessing as mp
 
-import os
-import glob
 import argparse
+import glob
+import os
 import pdf2image
 import simplejson
-from tqdm import tqdm
+import tqdm
 
 from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
+
+
+def process_file(filename, out_dir, phase):
+    try:
+        page = pdf2image.convert_from_path(filename)[0]
+        page.save(os.path.join(out_dir, phase, os.path.basename(filename)[:-3] + 'png'))
+
+        height = page.size[1]
+        width = page.size[0]
+
+        ngrams = util.create_ngrams(page)
+        for ngram in ngrams:
+            if "amount" in ngram["parses"]:
+                ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
+            if "date" in ngram["parses"]:
+                ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
+
+        with open(filename[:-3] + 'json', 'r') as fp:
+            labels = simplejson.loads(fp.read())
+
+        fields = {}
+        for field in FIELDS:
+            if field in labels:
+                if FIELDS[field] == FIELD_TYPES["amount"]:
+                    fields[field] = util.normalize(labels[field], key="amount")
+                elif FIELDS[field] == FIELD_TYPES["date"]:
+                    fields[field] = util.normalize(labels[field], key="date")
+                else:
+                    fields[field] = labels[field]
+            else:
+                fields[field] = ''
+
+        data = {
+            "fields": fields,
+            "nGrams": ngrams,
+            "height": height,
+            "width": width,
+            "filename": os.path.abspath(
+                os.path.join(out_dir, phase, os.path.basename(filename)[:-3] + 'png'))
+        }
+
+        with open(os.path.join(out_dir, phase, os.path.basename(filename)[:-3] + 'json'), 'w') as fp:
+            fp.write(simplejson.dumps(data, indent=2))
+        return True
+
+    except Exception as exp:
+        print("Skipping {} : {}".format(filename, exp))
+        return False
 
 
 def main():
@@ -38,6 +87,8 @@ def main():
                     help="path to save prepared data")
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
+    ap.add_argument("--cores", type=int, help='Number of virtual cores to parallelize over',
+                    default=max(1, (mp.cpu_count() - 2) // 2)) # To prevent IPC issues
 
     args = ap.parse_args()
 
@@ -57,51 +108,14 @@ def main():
     for phase, filenames in [('train', train_files), ('val', val_files)]:
         print("Preparing {} data...".format(phase))
 
-        for filename in tqdm(filenames):
-            try:
-                page = pdf2image.convert_from_path(filename)[0]
-                page.save(os.path.join(args.out_dir, phase, os.path.basename(filename)[:-3] + 'png'))
+        with tqdm.tqdm(total=len(filenames)) as pbar:
+            pool = mp.Pool(args.cores)
+            for filename in filenames:
+                pool.apply_async(process_file, args=(filename, args.out_dir, phase),
+                                 callback=lambda _: pbar.update())
 
-                height = page.size[1]
-                width = page.size[0]
-
-                ngrams = util.create_ngrams(page)
-                for ngram in ngrams:
-                    if "amount" in ngram["parses"]:
-                        ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
-                    if "date" in ngram["parses"]:
-                        ngram["parses"]["date"] = util.normalize(ngram["parses"]["date"], key="date")
-
-                with open(filename[:-3] + 'json', 'r') as fp:
-                    labels = simplejson.loads(fp.read())
-
-                fields = {}
-                for field in FIELDS:
-                    if field in labels:
-                        if FIELDS[field] == FIELD_TYPES["amount"]:
-                            fields[field] = util.normalize(labels[field], key="amount")
-                        elif FIELDS[field] == FIELD_TYPES["date"]:
-                            fields[field] = util.normalize(labels[field], key="date")
-                        else:
-                            fields[field] = labels[field]
-                    else:
-                        fields[field] = ''
-
-                data = {
-                    "fields": fields,
-                    "nGrams": ngrams,
-                    "height": height,
-                    "width": width,
-                    "filename": os.path.abspath(
-                        os.path.join(args.out_dir, phase, os.path.basename(filename)[:-3] + 'png'))
-                }
-
-                with open(os.path.join(args.out_dir, phase, os.path.basename(filename)[:-3] + 'json'), 'w') as fp:
-                    fp.write(simplejson.dumps(data, indent=2))
-
-            except Exception as exp:
-                print("Skipping {} : {}".format(filename, exp))
-                continue
+            pool.close()
+            pool.join()
 
 
 if __name__ == '__main__':

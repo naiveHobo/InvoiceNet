@@ -9,3 +9,8 @@ data/
 predictions/
 processed_data/
 invoices/
+
+**/.vscode/
+*.swp
+**/*.egg-info/
+venv-*/
