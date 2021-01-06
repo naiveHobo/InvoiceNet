@@ -33,11 +33,11 @@ def main():
     ap.add_argument("--field", nargs='+', type=str, required=True, choices=FIELDS.keys(),
                     help="field to train parser for")
     ap.add_argument("--invoice", type=str, default=None,
-                    help="path to directory containing prepared data")
-    ap.add_argument("--data_dir", type=str, default='processed_data/',
-                    help="path to directory containing prepared data")
+                    help="path to invoice pdf file")
+    ap.add_argument("--data_dir", type=str, default='invoices/',
+                    help="path to directory containing invoice pdf files")
     ap.add_argument("--pred_dir", type=str, default='predictions/',
-                    help="path to directory containing prepared data")
+                    help="path to directory where predictions should be stored")
 
     args = ap.parse_args()
 
@@ -47,7 +47,10 @@ def main():
 
     if args.invoice:
         if not os.path.exists(args.invoice):
-            print("Could not find file '{}'".format(args.invoice))
+            print("ERROR: Could not find file '{}'".format(args.invoice))
+            return
+        if not args.invoice.endswith('.pdf'):
+            print("ERROR: '{}' is not a PDF file".format(args.invoice))
             return
         paths.append(args.invoice)
     else:
@@ -75,7 +78,10 @@ def main():
         labels = {}
         if os.path.exists(os.path.join(args.pred_dir, filename)):
             with open(os.path.join(args.pred_dir, filename), 'r') as fp:
-                labels = json.load(fp)
+                try:
+                    labels = json.load(fp)
+                except:
+                    labels = {}
         with open(os.path.join(args.pred_dir, filename), 'w') as fp:
             print("\nFilename: {}".format(filename))
             for field in predictions.keys():

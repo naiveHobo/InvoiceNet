@@ -279,8 +279,8 @@ class InvoiceData(Data):
             for idx, path in enumerate(paths):
                 try:
                     yield self._process_pdf(path)
-                except:
-                    print(path + " %d/%d" % (exceptions, idx))
+                except Exception as exp:
+                    print("Exception: {} : {}".format(path, exp))
                     exceptions += 1
 
         return _generator
