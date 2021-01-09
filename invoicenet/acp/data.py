@@ -95,7 +95,7 @@ class InvoiceData(Data):
             InvoiceData.im_size,  # pattern_indices
             InvoiceData.im_size,  # char_indices
             InvoiceData.im_size,  # memory_mask
-            InvoiceData.im_size + (4, 2),  # parses
+            InvoiceData.im_size + (self.n_memories, 2),  # parses
             (InvoiceData.seq_out[FIELDS[self.field]],)  # target
         )
 
@@ -111,7 +111,7 @@ class InvoiceData(Data):
         char_indices = np.zeros(self.im_size, np.int32)
         memory_mask = np.zeros(self.im_size, np.float32)
 
-        parses = np.zeros(self.im_size + (4, 2))
+        parses = np.zeros(self.im_size + (self.n_memories, 2))
         memory_indices = []
         for n_gram in n_grams:
             words = n_gram["words"]
