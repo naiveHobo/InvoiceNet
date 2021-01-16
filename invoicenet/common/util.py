@@ -79,17 +79,44 @@ class TextParser:
         return text
 
 
-def extract_words(img):
-    data = pytesseract.image_to_data(img, output_type=Output.DICT)
-    n_boxes = len(data['text'])
-    words = [{'text': data['text'][i],
-              'left': data['left'][i],
-              'top': data['top'][i],
-              'right': data['left'][i] + data['width'][i],
-              'bottom': data['top'][i] + data['height'][i]}
-             for i in range(n_boxes) if data['text'][i]]
-    return words
+def extract_words(img, height, width, ocr_engine='pytesseract'):
 
+    if ocr_engine == 'pytesseract':
+        data = pytesseract.image_to_data(img, output_type=Output.DICT)
+        n_boxes = len(data['text'])
+        words = [{'text': data['text'][i],
+                'left': data['left'][i],
+                'top': data['top'][i],
+                'right': data['left'][i] + data['width'][i],
+                'bottom': data['top'][i] + data['height'][i]}
+                for i in range(n_boxes) if data['text'][i]]
+        return words
+
+    elif ocr_engine == 'aws_textract':
+
+        import io
+        import math
+        import boto3
+        
+        # use aws textract
+        client = boto3.client('textract')
+
+        # convert PpmImageFile to byte
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # call aws-textract API
+        response = client.detect_document_text(Document={'Bytes': img_byte_arr})
+        
+        # get image weight and height to convert normalized coordinate from response
+        words = [{'text' : data['Text'], 
+                'left' : math.floor((data['Geometry']['BoundingBox']['Left']) * width), 
+                'top' : math.floor((data['Geometry']['BoundingBox']['Top']) * height), 
+                'right' : math.ceil((data['Geometry']['BoundingBox']['Left'] + data['Geometry']['BoundingBox']['Width']) * width),
+                'bottom' : math.ceil((data['Geometry']['BoundingBox']['Top'] + data['Geometry']['BoundingBox']['Height']) * height)}
+                for data in response['Blocks'] if "Text" in data]
+        return words
 
 def divide_into_lines(words, height, width):
     cur = words[0]
@@ -113,8 +140,8 @@ def divide_into_lines(words, height, width):
     return lines
 
 
-def create_ngrams(img, length=4):
-    words = extract_words(img)
+def create_ngrams(img, height, width, length=4, ocr_engine='pytesseract'):
+    words = extract_words(img, height=height, width=width, ocr_engine=ocr_engine)
     lines = divide_into_lines(words, height=img.size[1], width=img.size[0])
     tokens = [line[i:i + N] for line in lines for N in range(1, length + 1) for i in range(len(line) - N + 1)]
     ngrams = []
