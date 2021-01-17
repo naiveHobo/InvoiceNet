@@ -29,8 +29,7 @@ import tqdm
 from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
 
-
-def process_file(filename, out_dir, phase):
+def process_file(filename, out_dir, phase, ocr_engine):
     try:
         page = pdf2image.convert_from_path(filename)[0]
         page.save(os.path.join(out_dir, phase, os.path.basename(filename)[:-3] + 'png'))
@@ -38,7 +37,7 @@ def process_file(filename, out_dir, phase):
         height = page.size[1]
         width = page.size[0]
 
-        ngrams = util.create_ngrams(page)
+        ngrams = util.create_ngrams(page, height=height, width=width, ocr_engine=ocr_engine)
         for ngram in ngrams:
             if "amount" in ngram["parses"]:
                 ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
@@ -89,6 +88,8 @@ def main():
                     help="validation split ration")
     ap.add_argument("--cores", type=int, help='Number of virtual cores to parallelize over',
                     default=max(1, (mp.cpu_count() - 2) // 2)) # To prevent IPC issues
+    ap.add_argument("--ocr_engine", type=str, default='pytesseract',
+                    help='OCR used to extract text', choices=['pytesseract', 'aws_textract]')
 
     args = ap.parse_args()
 
@@ -111,7 +112,7 @@ def main():
         with tqdm.tqdm(total=len(filenames)) as pbar:
             pool = mp.Pool(args.cores)
             for filename in filenames:
-                pool.apply_async(process_file, args=(filename, args.out_dir, phase),
+                pool.apply_async(process_file, args=(filename, args.out_dir, phase, args.ocr_engine),
                                  callback=lambda _: pbar.update())
 
             pool.close()
