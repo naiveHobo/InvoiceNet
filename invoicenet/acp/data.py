@@ -245,7 +245,7 @@ class InvoiceData(Data):
         height = pixels.size[1]
         width = pixels.size[0]
 
-        ngrams = util.create_ngrams(pixels)
+        ngrams = util.create_ngrams(pixels, height, width)
         for ngram in ngrams:
             if "amount" in ngram["parses"]:
                 ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")
