@@ -250,14 +250,31 @@ class Trainer(Frame):
         self.logger.log("Initializing training!")
         start = time.time()
         step = 0
+
         while True:
-            train_loss = model.train_step(next(train_iter))
+
+            try:
+                train_loss = model.train_step(next(train_iter))
+            except StopIteration:
+                self.logger.log("Couldn't find any training data! Have you prepared your training data?")
+                self.logger.log("Terminating...")
+                self.thread.stop()
+                break
+
             if not np.isfinite(train_loss):
                 raise ValueError("NaN loss")
 
             if step % print_interval == 0:
                 took = time.time() - start
-                val_loss = model.val_step(next(val_iter))
+
+                try:
+                    val_loss = model.val_step(next(val_iter))
+                except StopIteration:
+                    self.logger.log("Couldn't find any validation data! Have you prepared your training data?")
+                    self.logger.log("Terminating...")
+                    self.thread.stop()
+                    break
+
                 self.logger.log("[step: %d | %.2f steps/s]: train loss: %.4f val loss: %.4f" % (
                     step, (step + 1) / took, train_loss, val_loss))
                 if not np.isfinite(val_loss):
@@ -358,6 +375,9 @@ class Trainer(Frame):
         self.logger.log("Training: {}".format(len(train_files)))
         self.logger.log("Validation: {}".format(len(val_files)))
 
+        if len(train_files) == 0 or len(val_files) == 0:
+            messagebox.showwarning("Warning", "Training data is not enough to create training/validation splits")
+
         total_samples = len(filenames)
         sample_idx = 0
         for phase, filenames in [('train', train_files), ('val', val_files)]:
@@ -370,7 +390,7 @@ class Trainer(Frame):
                 height = page.size[1]
                 width = page.size[0]
 
-                ngrams = util.create_ngrams(page)
+                ngrams = util.create_ngrams(page, height=height, width=width)
                 for ngram in ngrams:
                     if "amount" in ngram["parses"]:
                         ngram["parses"]["amount"] = util.normalize(ngram["parses"]["amount"], key="amount")

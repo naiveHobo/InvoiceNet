@@ -20,6 +20,8 @@
 # SOFTWARE.
 
 import re
+import io
+import math
 import datetime
 import datefinder
 import pytesseract
@@ -80,24 +82,25 @@ class TextParser:
 
 
 def extract_words(img, height, width, ocr_engine='pytesseract'):
-
     if ocr_engine == 'pytesseract':
         data = pytesseract.image_to_data(img, output_type=Output.DICT)
         n_boxes = len(data['text'])
-        words = [{'text': data['text'][i],
+        words = [
+            {
+                'text': data['text'][i],
                 'left': data['left'][i],
                 'top': data['top'][i],
                 'right': data['left'][i] + data['width'][i],
-                'bottom': data['top'][i] + data['height'][i]}
-                for i in range(n_boxes) if data['text'][i]]
+                'bottom': data['top'][i] + data['height'][i]
+            }
+            for i in range(n_boxes) if data['text'][i]
+        ]
         return words
 
     elif ocr_engine == 'aws_textract':
 
-        import io
-        import math
         import boto3
-        
+
         # use aws textract
         client = boto3.client('textract')
 
@@ -108,15 +111,21 @@ def extract_words(img, height, width, ocr_engine='pytesseract'):
 
         # call aws-textract API
         response = client.detect_document_text(Document={'Bytes': img_byte_arr})
-        
+
         # get image weight and height to convert normalized coordinate from response
-        words = [{'text' : data['Text'], 
-                'left' : math.floor((data['Geometry']['BoundingBox']['Left']) * width), 
-                'top' : math.floor((data['Geometry']['BoundingBox']['Top']) * height), 
-                'right' : math.ceil((data['Geometry']['BoundingBox']['Left'] + data['Geometry']['BoundingBox']['Width']) * width),
-                'bottom' : math.ceil((data['Geometry']['BoundingBox']['Top'] + data['Geometry']['BoundingBox']['Height']) * height)}
-                for data in response['Blocks'] if "Text" in data]
+        words = [
+            {
+                'text': data['Text'],
+                'left': math.floor((data['Geometry']['BoundingBox']['Left']) * width),
+                'top': math.floor((data['Geometry']['BoundingBox']['Top']) * height),
+                'right': math.ceil(
+                    (data['Geometry']['BoundingBox']['Left'] + data['Geometry']['BoundingBox']['Width']) * width),
+                'bottom': math.ceil(
+                    (data['Geometry']['BoundingBox']['Top'] + data['Geometry']['BoundingBox']['Height']) * height)
+            } for data in response['Blocks'] if "Text" in data
+        ]
         return words
+
 
 def divide_into_lines(words, height, width):
     cur = words[0]

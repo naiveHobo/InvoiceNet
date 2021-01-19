@@ -17,7 +17,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import multiprocessing as mp
 
 import argparse
 import glob
@@ -25,9 +24,11 @@ import os
 import pdf2image
 import simplejson
 import tqdm
+import multiprocessing as mp
 
 from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
+
 
 def process_file(filename, out_dir, phase, ocr_engine):
     try:
@@ -87,7 +88,7 @@ def main():
     ap.add_argument("--val_size", type=float, default=0.2,
                     help="validation split ration")
     ap.add_argument("--cores", type=int, help='Number of virtual cores to parallelize over',
-                    default=max(1, (mp.cpu_count() - 2) // 2)) # To prevent IPC issues
+                    default=max(1, (mp.cpu_count() - 2) // 2))  # To prevent IPC issues
     ap.add_argument("--ocr_engine", type=str, default='pytesseract',
                     help='OCR used to extract text', choices=['pytesseract', 'aws_textract'])
 

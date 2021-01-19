@@ -41,13 +41,26 @@ def train(model: Model,
 
     start = time.time()
     for step in range(total_steps):
-        train_loss = model.train_step(next(train_iter))
+        try:
+            train_loss = model.train_step(next(train_iter))
+        except StopIteration:
+            print("Couldn't find any training data! Have you prepared your training data?")
+            print("Terminating...")
+            break
+
         if not np.isfinite(train_loss):
             raise ValueError("NaN loss")
 
         if step % print_interval == 0:
             took = time.time() - start
-            val_loss = model.val_step(next(val_iter))
+
+            try:
+                val_loss = model.val_step(next(val_iter))
+            except StopIteration:
+                print("Couldn't find any validation data! Have you prepared your training data?")
+                print("Terminating...")
+                break
+
             print("[%d/%d | %.2f steps/s]: train loss: %.4f val loss: %.4f" % (
                 step, total_steps, (step + 1) / took, train_loss, val_loss))
             if not np.isfinite(val_loss):
