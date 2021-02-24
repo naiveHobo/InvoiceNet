@@ -124,7 +124,7 @@ class InvoiceData(Data):
             bottom = min(round(word['bottom'] * v_ar), max_v)
 
             for k, v in n_gram['parses'].items():
-                parses[top:bottom, left:right, m_idx, self.parses_idx[k]] = 1.0
+                parses[top:bottom + 1, left:right + 1, m_idx, self.parses_idx[k]] = 1.0
 
             chars = " ".join([w['text'] for w in words])[:self.seq_in - 1]
             char_idx = [self.output_dict[c] for c in chars] + [self.eos_idx]
@@ -143,13 +143,13 @@ class InvoiceData(Data):
                 pattern = re.sub(r"[^Xx0]", "-", pattern)
 
                 pattern_idx = (int(hashlib.md5(str.encode(pattern)).hexdigest(), 16) % (self.pattern_hash_size - 1)) + 1
-                pattern_indices[top:bottom, left:right] = pattern_idx
+                pattern_indices[top:bottom + 1, left:right + 1] = pattern_idx
 
                 w_idx = (int(hashlib.md5(str.encode(text)).hexdigest(), 16) % (self.word_hash_size - 1)) + 1
-                word_indices[top:bottom, left:right] = w_idx
+                word_indices[top:bottom + 1, left:right + 1] = w_idx
 
-                for cidx, p in zip(char_idx[:-1], np.linspace(left, right - 1, len(char_idx[:-1]))):
-                    char_indices[top:bottom, int(round(p))] = cidx
+                for cidx, p in zip(char_idx[:-1], np.linspace(left, right, len(char_idx[:-1]))):
+                    char_indices[top:bottom + 1, int(round(p))] = cidx
 
         assert len(memory_indices) > 0
         memory_values = [1.] * len(memory_indices)
