@@ -242,9 +242,12 @@ tensorflow_package = 'tensorflow==2.3.0'
 try:
     # Look for CUDA devices and NVCC/CUDA installation
     device_info, nvcc_settings = inspect_cuda()
-    tensorflow_package = 'tensorflow-gpu==2.3.0'
-
     cuda_version = device_info['cuda_version']
+    
+    if cuda_version >= 11000:
+    	tensorflow_package = 'tensorflow-gpu==2.4.1'
+    else:
+    	tensorflow_package = 'tensorflow-gpu==2.3.0'
     print("CUDA '{}' found. "
           "Installing tensorflow GPU".format(cuda_version))
 
@@ -271,14 +274,16 @@ setuptools.setup(name='InvoiceNet',
                  packages=setuptools.find_packages(),
                  install_requires=[
                      tensorflow_package,
+                     "numpy~=1.19.2",
+                     "six~=1.15.0",
                      "datefinder==0.7.1",
-                     "opencv-python==4.3.0.36",
-                     "pdf2image==1.13.1",
-                     "pdfplumber==0.5.22",
+                     "opencv-python==4.5.1.48",
+                     "pdf2image==1.14.0",
+                     "pdfplumber==0.5.27",
                      "PyPDF2==1.26.0",
-                     "pytesseract==0.3.4",
+                     "pytesseract==0.3.7",
                      "python-dateutil==2.8.1",
-                     "PyYAML==5.3.1",
-                     "simplejson==3.17.2",
-                     "tqdm==4.48.2"
+                     "PyYAML==5.4.1",
+                     "simplejson=3.17.2",
+                     "tqdm==4.59.0"
                  ])
