@@ -37,9 +37,9 @@ We have the tools to create the first publicly-available large-scale invoice dat
 
 ## Installation
 
-#### Ubuntu 18.04
+#### Ubuntu 18.04 and 20.04
 
-To install InvoiceNet on Ubuntu 18.04, run the following commands:
+To install InvoiceNet on Ubuntu, run the following commands:
 
 ```bash
 git clone https://github.com/naiveHobo/InvoiceNet.git
