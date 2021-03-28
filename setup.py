@@ -284,6 +284,6 @@ setuptools.setup(name='InvoiceNet',
                      "pytesseract==0.3.7",
                      "python-dateutil==2.8.1",
                      "PyYAML==5.4.1",
-                     "simplejson=3.17.2",
+                     "simplejson==3.17.2",
                      "tqdm==4.59.0"
                  ])
