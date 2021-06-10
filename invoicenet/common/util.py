@@ -27,6 +27,18 @@ import datefinder
 import pytesseract
 from pytesseract import Output
 
+import os
+from PIL import Image
+from googleapiclient.discovery import build
+import base64
+from google.cloud import vision
+
+## API keys for google ocr
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="file.json"
+
+
+
+
 
 class TextParser:
 
@@ -97,6 +109,38 @@ def extract_words(img, height, width, ocr_engine='pytesseract'):
         ]
         return words
 
+    
+    elif ocr_engine=='google_ocr':
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        client = vision.ImageAnnotatorClient()
+        content=img_byte_arr
+        image_ = vision.Image(content=content)
+        response = client.text_detection(image=image_)
+        texts = response.text_annotations
+
+        words=[]
+        first=True
+        for text in texts:
+                if first:
+                    first=False
+                    continue
+                data={}
+                data['text']=text.description
+                x_vert=[]
+                y_vert=[]
+                for vertex in text.bounding_poly.vertices:
+                    x_vert.append(vertex.x)
+                    y_vert.append(vertex.y)
+                data['left']=x_vert[0]
+                data['right']=x_vert[1]
+                data['top']=y_vert[0]
+                data['bottom']=y_vert[2]
+                words.append(data)
+        return words
+    
+    
     elif ocr_engine == 'aws_textract':
 
         import boto3
