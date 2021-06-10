@@ -29,6 +29,8 @@ import multiprocessing as mp
 from invoicenet import FIELDS, FIELD_TYPES
 from invoicenet.common import util
 
+import random
+
 
 def process_file(filename, out_dir, phase, ocr_engine):
     try:
@@ -100,6 +102,7 @@ def main():
     filenames = [os.path.abspath(f) for f in glob.glob(args.data_dir + "**/*.pdf", recursive=True)]
 
     idx = int(len(filenames) * args.val_size)
+    random.shuffle(filenames)
     train_files = filenames[idx:]
     val_files = filenames[:idx]
 
