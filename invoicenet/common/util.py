@@ -133,10 +133,10 @@ def extract_words(img, height, width, ocr_engine='pytesseract'):
                 for vertex in text.bounding_poly.vertices:
                     x_vert.append(vertex.x)
                     y_vert.append(vertex.y)
-                data['left']=x_vert[0]
-                data['right']=x_vert[1]
-                data['top']=y_vert[0]
-                data['bottom']=y_vert[2]
+                data['left']=min(x_vert)
+                data['right']=max(x_vert)
+                data['top']=min(y_vert)
+                data['bottom']=max(y_vert)
                 words.append(data)
         return words
     
