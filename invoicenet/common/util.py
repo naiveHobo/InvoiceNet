@@ -34,7 +34,7 @@ import base64
 from google.cloud import vision
 
 ## API keys for google ocr
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="file.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="google_api_keys.json"
 
 
 
@@ -123,21 +123,21 @@ def extract_words(img, height, width, ocr_engine='pytesseract'):
         words=[]
         first=True
         for text in texts:
-                if first:
-                    first=False
-                    continue
-                data={}
-                data['text']=text.description
-                x_vert=[]
-                y_vert=[]
-                for vertex in text.bounding_poly.vertices:
-                    x_vert.append(vertex.x)
-                    y_vert.append(vertex.y)
-                data['left']=min(x_vert)
-                data['right']=max(x_vert)
-                data['top']=min(y_vert)
-                data['bottom']=max(y_vert)
-                words.append(data)
+            if first:
+                first=False
+                continue
+            data={}
+            data['text']=text.description
+            x_vert=[]
+            y_vert=[]
+            for vertex in text.bounding_poly.vertices:
+                x_vert.append(vertex.x)
+                y_vert.append(vertex.y)
+            data['left']=min(x_vert)
+            data['right']=max(x_vert)
+            data['top']=min(y_vert)
+            data['bottom']=max(y_vert)
+            words.append(data)
         return words
     
     
@@ -193,7 +193,7 @@ def divide_into_lines(words, height, width):
     return lines
 
 
-def create_ngrams(img, height, width, length=4, ocr_engine='pytesseract'):
+def create_ngrams(img, height, width, length=4, ocr_engine='pytesseract'):##change ocr_engine here while running predict.py  
     words = extract_words(img, height=height, width=width, ocr_engine=ocr_engine)
     lines = divide_into_lines(words, height=img.size[1], width=img.size[0])
     tokens = [line[i:i + N] for line in lines for N in range(1, length + 1) for i in range(len(line) - N + 1)]
