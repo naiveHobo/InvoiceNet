@@ -37,9 +37,6 @@ from google.cloud import vision
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="google_api_keys.json"
 
 
-
-
-
 class TextParser:
 
     def __init__(self):
