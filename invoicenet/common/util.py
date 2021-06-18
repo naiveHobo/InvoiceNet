@@ -27,6 +27,15 @@ import datefinder
 import pytesseract
 from pytesseract import Output
 
+import os
+from PIL import Image
+from googleapiclient.discovery import build
+import base64
+from google.cloud import vision
+
+## API keys for google ocr
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="google_api_keys.json"
+
 
 class TextParser:
 
@@ -97,6 +106,38 @@ def extract_words(img, height, width, ocr_engine='pytesseract'):
         ]
         return words
 
+    
+    elif ocr_engine=='google_ocr':
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        client = vision.ImageAnnotatorClient()
+        content=img_byte_arr
+        image_ = vision.Image(content=content)
+        response = client.text_detection(image=image_)
+        texts = response.text_annotations
+
+        words=[]
+        first=True
+        for text in texts:
+            if first:
+                first=False
+                continue
+            data={}
+            data['text']=text.description
+            x_vert=[]
+            y_vert=[]
+            for vertex in text.bounding_poly.vertices:
+                x_vert.append(vertex.x)
+                y_vert.append(vertex.y)
+            data['left']=min(x_vert)
+            data['right']=max(x_vert)
+            data['top']=min(y_vert)
+            data['bottom']=max(y_vert)
+            words.append(data)
+        return words
+    
+    
     elif ocr_engine == 'aws_textract':
 
         import boto3
@@ -149,7 +190,7 @@ def divide_into_lines(words, height, width):
     return lines
 
 
-def create_ngrams(img, height, width, length=4, ocr_engine='pytesseract'):
+def create_ngrams(img, height, width, length=4, ocr_engine='pytesseract'):##change ocr_engine here while running predict.py  
     words = extract_words(img, height=height, width=width, ocr_engine=ocr_engine)
     lines = divide_into_lines(words, height=img.size[1], width=img.size[0])
     tokens = [line[i:i + N] for line in lines for N in range(1, length + 1) for i in range(len(line) - N + 1)]
