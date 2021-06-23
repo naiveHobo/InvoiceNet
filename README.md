@@ -184,12 +184,12 @@ python train.py --field total_amount --batch_size 8
 ---
 
 ### Prediction
+If you are trying to use different ocr, change the ocr_engine in this function before running predict.py [create_ngrams.py](https://github.com/naiveHobo/InvoiceNet/blob/e883158a690726afd1de5b76b5810287013577c6/invoicenet/common/util.py#L193)
 
 ---
 
 #### Single invoice
 To extract a field from a single invoice file, run the following command:
-
 ```bash
 python predict.py --field enter-field-here --invoice path-to-invoice-file
 
