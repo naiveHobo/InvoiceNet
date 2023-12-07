@@ -37,7 +37,9 @@ We have the tools to create the first publicly-available large-scale invoice dat
 
 ## Installation
 
-#### Ubuntu 18.04 and 20.04
+#### Ubuntu 20.04
+
+InvoiceNet has been developed and tested on **Ubuntu 20.04** with **CUDA Version: 11.8**, **cuDNN version: 8.9.7**, and **Tensorflow v2.13.1**.
 
 To install InvoiceNet on Ubuntu, run the following commands:
 
