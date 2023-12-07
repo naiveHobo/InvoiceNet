@@ -62,7 +62,7 @@ class InvoiceData(Data):
         FIELD_TYPES["date"]: seq_date
     }
 
-    n_memories = 5
+    n_memories = 4
     parses_idx = {'date': 0, 'amount': 1}
 
     def __init__(self, field, data_dir=None):
