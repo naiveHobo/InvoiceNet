@@ -69,7 +69,7 @@ git clone https://github.com/naiveHobo/InvoiceNet.git
 cd InvoiceNet/
 
 # Create conda environment and activate
-conda create --name invoicenet python=3.7
+conda create --name invoicenet python=3.9
 conda activate invoicenet
 
 # Install InvoiceNet
